@@ -26,12 +26,14 @@ CollisiontQuadSortingResult collision_quad_sort(const std::vector<std::shared_pt
     // Reserve place for output
     const size_t nbr_body = body_ids.size();
     CollisiontQuadSortingResult result;
-    result.zones[0].reserve(nbr_body);
-    result.zones[1].reserve(nbr_body);
-    result.zones[2].reserve(nbr_body);
-    result.zones[3].reserve(nbr_body);
-    result.zone_hybrid.reserve(nbr_body);
-    result.zone_hybrid_valid.reserve(nbr_body);
+    result.zones[0].resize(nbr_body);
+    result.zones[1].resize(nbr_body);
+    result.zones[2].resize(nbr_body);
+    result.zones[3].resize(nbr_body);
+    result.zone_hybrid.resize(nbr_body);
+    result.zone_hybrid_valid.resize(nbr_body);
+    size_t nbr_body_in_zone[4] = {0,0,0,0};
+    size_t nbr_body_hybrid_zone = 0;
 
     // finding pivot point
     Float2d pivot_point;
@@ -86,15 +88,23 @@ CollisiontQuadSortingResult collision_quad_sort(const std::vector<std::shared_pt
             id_to_add = CollisiontQuadSortingResult::zone_xpos_ypos_id;
         }
 
-        #pragma omp critical
-        {
-            if(nbr_zone == 1) result.zones[id_to_add].push_back(body_ids[i]);
-            else{
-                result.zone_hybrid.push_back(body_ids[i]);
-                result.zone_hybrid_valid.push_back(zone_hybrid_valid);
-            }
+        if(nbr_zone == 1) {
+            result.zones[id_to_add][nbr_body_in_zone[id_to_add]] = body_ids[i];
+            nbr_body_in_zone[id_to_add] += 1;
+        }
+        else{
+            result.zone_hybrid[nbr_body_hybrid_zone]=body_ids[i];
+            result.zone_hybrid_valid[nbr_body_hybrid_zone] = zone_hybrid_valid;
+            nbr_body_hybrid_zone += 1;
         }
     }
+
+    result.zones[0].resize(nbr_body_in_zone[0]);
+    result.zones[1].resize(nbr_body_in_zone[1]);
+    result.zones[2].resize(nbr_body_in_zone[2]);
+    result.zones[3].resize(nbr_body_in_zone[3]);
+    result.zone_hybrid.resize(nbr_body_hybrid_zone);
+    result.zone_hybrid_valid.resize(nbr_body_hybrid_zone);
 
     return result;
 
@@ -114,26 +124,28 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
         for( size_t i = 0 ; i < body_ids.size(); i++)body_ids[i] = i;
     }
 
+    const size_t nbr_body = body_ids.size();
+
     std::vector<CollisionPoolResult> out;
-    out.reserve(body_ptrs.size());
+    out.resize(nbr_body);
+    size_t size_out = 0;
 
     // Early exit
-    if(body_ids.size() < COLLISION_SORTER_MINIMUM_BODY || depth >= COLLISION_SORTER_MAX_DEPT){
-        for( size_t i = 0 ; i < body_ids.size(); i++ )
+    if(nbr_body < COLLISION_SORTER_MINIMUM_BODY || depth >= COLLISION_SORTER_MAX_DEPT){
+        for( size_t i = 0 ; i < nbr_body; i++ )
         {
             const size_t body_id_offset = i+1;
-            const size_t result_size = body_ids.size()-body_id_offset;
+            const size_t result_size = nbr_body-body_id_offset;
             if(result_size > 0)
             {
-                CollisionPoolResult result;
-                result.master_id = body_ids[i];
-
-                result.slave_ids.resize(result_size);
-                std::memcpy(result.slave_ids.data(), body_ids.data() + body_id_offset, result_size*sizeof(size_t));
-
-                out.push_back(result);
+                out[size_out] = CollisionPoolResult();
+                out[size_out].master_id = body_ids[i];
+                out[size_out].slave_ids.resize(result_size);
+                std::memcpy(out[size_out].slave_ids.data(), body_ids.data() + body_id_offset, result_size*sizeof(size_t));
+                size_out += 1;
             }
         }
+        out.resize(size_out);
         return out;
     }
 
@@ -143,8 +155,8 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
 
     for( size_t i = 0 ; i < hybrid_size; i++ )
     {
-        CollisionPoolResult result;
-        result.master_id = quad_sorting_result.zone_hybrid[i];
+        out[size_out] = CollisionPoolResult();
+        out[size_out].master_id = quad_sorting_result.zone_hybrid[i];
 
         size_t size_to_reserve = (hybrid_size-i);
         for( uint8_t k = 0; k < 4; k++)
@@ -155,7 +167,7 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
             }
         }
 
-        result.slave_ids.resize(size_to_reserve);
+        out[size_out].slave_ids.resize(size_to_reserve);
         size_t real_size = 0;
 
         for( size_t j = (i+1) ; j < hybrid_size; j++ )
@@ -167,7 +179,7 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
                 (quad_sorting_result.zone_hybrid_valid[i][3] && quad_sorting_result.zone_hybrid_valid[j][3])
             )
             {
-                result.slave_ids[real_size] = quad_sorting_result.zone_hybrid[j];
+                out[size_out].slave_ids[real_size] = quad_sorting_result.zone_hybrid[j];
                 real_size += 1;
             }
         }
@@ -177,28 +189,27 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
             if(quad_sorting_result.zone_hybrid_valid[i][k])
             {
                 //for( size_t j = 0 ; j < zones_sizes[k]; j++ ) result.slave_ids[real_size+j] = quad_sorting_result.zones[k][j];
-                std::memcpy(result.slave_ids.data()+real_size, quad_sorting_result.zones[k].data(), zones_sizes[k]*sizeof(size_t));
+                std::memcpy(out[size_out].slave_ids.data()+real_size, quad_sorting_result.zones[k].data(), zones_sizes[k]*sizeof(size_t));
                 real_size += zones_sizes[k];
             }
         }
 
-        result.slave_ids.resize(real_size);
-
-        out.push_back(result);
+        out[size_out].slave_ids.resize(real_size);
+        size_out += 1;
     }
 
     for( uint8_t k = 0; k < 4; k++)
     {
         std::vector<CollisionPoolResult> recursive_result = generate_collision_pool(body_ptrs, quad_sorting_result.zones[k], depth + 1);
-        const size_t out_size = out.size();
         const size_t result_size = recursive_result.size();
-        out.resize(out_size + result_size);
 
-        for( size_t i = 0 ; i < recursive_result.size();  i++)
+        for( size_t i = 0 ; i < result_size;  i++)
         {
-            out[i + out_size] = std::move(recursive_result[i]);
+            out[size_out + i] = std::move(recursive_result[i]);
         }
+        size_out += result_size;
     }
 
+    out.resize(size_out);
     return out;
 }
