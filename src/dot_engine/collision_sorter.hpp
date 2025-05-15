@@ -8,30 +8,24 @@
 constexpr size_t COLLISION_SORTER_MAX_DEPT = 16;
 constexpr size_t COLLISION_SORTER_MINIMUM_BODY = 96;
 
-struct CollisiontQuadSortingResult
+void collision_quad_sort(
+    const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, 
+    const std::vector<size_t>& body_ids, 
+    std::vector<size_t>& zone_hybrid_result,
+    std::vector<std::array<bool, 4>>& zone_hybrid_valid_result,
+    std::array<std::vector<size_t>,4>& zones_result
+)
 {
-    public:
-    std::vector<size_t> zones[4];
-    std::vector<size_t> zone_hybrid;
-    std::vector<std::array<bool, 4>> zone_hybrid_valid;
 
-    constexpr static size_t  zone_xpos_ypos_id = 0;
-    constexpr static size_t  zone_xpos_yneg_id = 1;
-    constexpr static size_t  zone_xneg_ypos_id = 2;
-    constexpr static size_t  zone_xneg_yneg_id = 3;
-};
-
-CollisiontQuadSortingResult collision_quad_sort(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const std::vector<size_t>& body_ids)
-{
     // Reserve place for output
     const size_t nbr_body = body_ids.size();
-    CollisiontQuadSortingResult result;
-    result.zones[0].resize(nbr_body);
-    result.zones[1].resize(nbr_body);
-    result.zones[2].resize(nbr_body);
-    result.zones[3].resize(nbr_body);
-    result.zone_hybrid.resize(nbr_body);
-    result.zone_hybrid_valid.resize(nbr_body);
+    
+    zones_result[0].resize(nbr_body);
+    zones_result[1].resize(nbr_body);
+    zones_result[2].resize(nbr_body);
+    zones_result[3].resize(nbr_body);
+    zone_hybrid_result.resize(nbr_body);
+    zone_hybrid_valid_result.resize(nbr_body);
     size_t nbr_body_in_zone[4] = {0,0,0,0};
     size_t nbr_body_hybrid_zone = 0;
 
@@ -66,47 +60,47 @@ CollisiontQuadSortingResult collision_quad_sort(const std::vector<std::shared_pt
         if(min_x < x_pivot && min_y < y_pivot) 
         {
             nbr_zone += 1;
-            zone_hybrid_valid[CollisiontQuadSortingResult::zone_xneg_yneg_id] = true;
-            id_to_add = CollisiontQuadSortingResult::zone_xneg_yneg_id;
+            zone_hybrid_valid[0] = true;
+            id_to_add = 0;
         }
         if(min_x < x_pivot && max_y > y_pivot) 
         {
             nbr_zone += 1;
-            zone_hybrid_valid[CollisiontQuadSortingResult::zone_xneg_ypos_id] = true;
-            id_to_add = CollisiontQuadSortingResult::zone_xneg_ypos_id;
+            zone_hybrid_valid[1] = true;
+            id_to_add = 1;
         }
         if(max_x > x_pivot && min_y < y_pivot) 
         {
             nbr_zone += 1;
-            zone_hybrid_valid[CollisiontQuadSortingResult::zone_xpos_yneg_id] = true;
-            id_to_add = CollisiontQuadSortingResult::zone_xpos_yneg_id;
+            zone_hybrid_valid[2] = true;
+            id_to_add = 2;
         }
         if(max_x > x_pivot && max_y > y_pivot) 
         {
             nbr_zone += 1;
-            zone_hybrid_valid[CollisiontQuadSortingResult::zone_xpos_ypos_id] = true;
-            id_to_add = CollisiontQuadSortingResult::zone_xpos_ypos_id;
+            zone_hybrid_valid[3] = true;
+            id_to_add = 3;
         }
 
         if(nbr_zone == 1) {
-            result.zones[id_to_add][nbr_body_in_zone[id_to_add]] = body_ids[i];
+            zones_result[id_to_add][nbr_body_in_zone[id_to_add]] = body_ids[i];
             nbr_body_in_zone[id_to_add] += 1;
         }
         else{
-            result.zone_hybrid[nbr_body_hybrid_zone]=body_ids[i];
-            result.zone_hybrid_valid[nbr_body_hybrid_zone] = zone_hybrid_valid;
+            zone_hybrid_result[nbr_body_hybrid_zone]=body_ids[i];
+            zone_hybrid_valid_result[nbr_body_hybrid_zone] = zone_hybrid_valid;
             nbr_body_hybrid_zone += 1;
         }
     }
 
-    result.zones[0].resize(nbr_body_in_zone[0]);
-    result.zones[1].resize(nbr_body_in_zone[1]);
-    result.zones[2].resize(nbr_body_in_zone[2]);
-    result.zones[3].resize(nbr_body_in_zone[3]);
-    result.zone_hybrid.resize(nbr_body_hybrid_zone);
-    result.zone_hybrid_valid.resize(nbr_body_hybrid_zone);
+    zones_result[0].resize(nbr_body_in_zone[0]);
+    zones_result[1].resize(nbr_body_in_zone[1]);
+    zones_result[2].resize(nbr_body_in_zone[2]);
+    zones_result[3].resize(nbr_body_in_zone[3]);
+    zone_hybrid_result.resize(nbr_body_hybrid_zone);
+    zone_hybrid_valid_result.resize(nbr_body_hybrid_zone);
 
-    return result;
+    return;
 
 }
 
@@ -116,19 +110,18 @@ struct CollisionPoolResult
     std::vector<size_t> slave_ids;
 };
 
-std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, std::vector<size_t> body_ids = std::vector<size_t>(), const size_t depth = 0 )
+size_t generate_collision_pool_imp(
+    const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, 
+    const std::vector<size_t>& body_ids, 
+    std::vector<CollisionPoolResult>& out, 
+    const size_t initial_out_size, 
+    const size_t depth,
+    std::vector<size_t>& zone_hybrid_result,
+    std::vector<std::array<bool, 4>>& zone_hybrid_valid_result
+)
 {
-
-    if(body_ids.size() == 0){
-        body_ids.resize(body_ptrs.size());
-        for( size_t i = 0 ; i < body_ids.size(); i++)body_ids[i] = i;
-    }
-
     const size_t nbr_body = body_ids.size();
-
-    std::vector<CollisionPoolResult> out;
-    out.resize(nbr_body);
-    size_t size_out = 0;
+    size_t size_out = initial_out_size;
 
     // Early exit
     if(nbr_body < COLLISION_SORTER_MINIMUM_BODY || depth >= COLLISION_SORTER_MAX_DEPT){
@@ -145,23 +138,23 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
                 size_out += 1;
             }
         }
-        out.resize(size_out);
-        return out;
+        return size_out;
     }
 
-    CollisiontQuadSortingResult quad_sorting_result = collision_quad_sort(body_ptrs, body_ids);
-    const size_t zones_sizes[4] = {quad_sorting_result.zones[0].size(), quad_sorting_result.zones[1].size(), quad_sorting_result.zones[2].size(), quad_sorting_result.zones[3].size()};
-    const size_t hybrid_size = quad_sorting_result.zone_hybrid.size();
+    std::array<std::vector<size_t>,4> zones_result;
+    collision_quad_sort(body_ptrs, body_ids, zone_hybrid_result, zone_hybrid_valid_result, zones_result);
+    const size_t zones_sizes[4] = {zones_result[0].size(), zones_result[1].size(), zones_result[2].size(), zones_result[3].size()};
+    const size_t hybrid_size = zone_hybrid_result.size();
 
     for( size_t i = 0 ; i < hybrid_size; i++ )
     {
         out[size_out] = CollisionPoolResult();
-        out[size_out].master_id = quad_sorting_result.zone_hybrid[i];
+        out[size_out].master_id = zone_hybrid_result[i];
 
         size_t size_to_reserve = (hybrid_size-i);
         for( uint8_t k = 0; k < 4; k++)
         {
-            if(quad_sorting_result.zone_hybrid_valid[i][k])
+            if(zone_hybrid_valid_result[i][k])
             {
                 size_to_reserve += zones_sizes[k];
             }
@@ -173,23 +166,22 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
         for( size_t j = (i+1) ; j < hybrid_size; j++ )
         {
             if(
-                (quad_sorting_result.zone_hybrid_valid[i][0] && quad_sorting_result.zone_hybrid_valid[j][0]) ||
-                (quad_sorting_result.zone_hybrid_valid[i][1] && quad_sorting_result.zone_hybrid_valid[j][1]) ||
-                (quad_sorting_result.zone_hybrid_valid[i][2] && quad_sorting_result.zone_hybrid_valid[j][2]) ||
-                (quad_sorting_result.zone_hybrid_valid[i][3] && quad_sorting_result.zone_hybrid_valid[j][3])
+                (zone_hybrid_valid_result[i][0] && zone_hybrid_valid_result[j][0]) ||
+                (zone_hybrid_valid_result[i][1] && zone_hybrid_valid_result[j][1]) ||
+                (zone_hybrid_valid_result[i][2] && zone_hybrid_valid_result[j][2]) ||
+                (zone_hybrid_valid_result[i][3] && zone_hybrid_valid_result[j][3])
             )
             {
-                out[size_out].slave_ids[real_size] = quad_sorting_result.zone_hybrid[j];
+                out[size_out].slave_ids[real_size] = zone_hybrid_result[j];
                 real_size += 1;
             }
         }
 
         for( uint8_t k = 0; k < 4; k++)
         {
-            if(quad_sorting_result.zone_hybrid_valid[i][k])
+            if(zone_hybrid_valid_result[i][k])
             {
-                //for( size_t j = 0 ; j < zones_sizes[k]; j++ ) result.slave_ids[real_size+j] = quad_sorting_result.zones[k][j];
-                std::memcpy(out[size_out].slave_ids.data()+real_size, quad_sorting_result.zones[k].data(), zones_sizes[k]*sizeof(size_t));
+                std::memcpy(out[size_out].slave_ids.data()+real_size, zones_result[k].data(), zones_sizes[k]*sizeof(size_t));
                 real_size += zones_sizes[k];
             }
         }
@@ -200,16 +192,29 @@ std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::
 
     for( uint8_t k = 0; k < 4; k++)
     {
-        std::vector<CollisionPoolResult> recursive_result = generate_collision_pool(body_ptrs, quad_sorting_result.zones[k], depth + 1);
-        const size_t result_size = recursive_result.size();
-
-        for( size_t i = 0 ; i < result_size;  i++)
-        {
-            out[size_out + i] = std::move(recursive_result[i]);
-        }
-        size_out += result_size;
+        size_out = generate_collision_pool_imp(body_ptrs, zones_result[k], out, size_out, depth + 1, zone_hybrid_result, zone_hybrid_valid_result);
     }
 
-    out.resize(size_out);
+    return size_out;
+}
+
+std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs)
+{
+    const size_t nbr_body = body_ptrs.size();
+
+    std::vector<size_t> body_ids;
+    body_ids.resize(nbr_body);
+    for( size_t i = 0 ; i < body_ids.size(); i++)body_ids[i] = i;
+
+    std::vector<CollisionPoolResult> out;
+    out.resize(nbr_body);
+
+    std::vector<size_t> zone_hybrid_result;
+    std::vector<std::array<bool, 4>> zone_hybrid_valid_result;
+
+    const size_t out_size = generate_collision_pool_imp(body_ptrs, body_ids, out, 0, 0, zone_hybrid_result, zone_hybrid_valid_result);
+
+    out.resize(out_size);
     return out;
+
 }
