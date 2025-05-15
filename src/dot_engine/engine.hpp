@@ -1,4 +1,5 @@
 #include "./interfaces.hpp"
+#include "./collision_sorter.hpp"
 #include <iostream>
 #include <omp.h>
 #pragma once
@@ -9,8 +10,6 @@ class DotEngine {
     std::vector<std::shared_ptr<DotForceInterface>> m_force_ptrs;
     std::vector<std::shared_ptr<DotUniversalLawInterface>> m_universal_law_ptrs;
     std::vector<std::shared_ptr<DotCollisionEffectInterface>> m_collision_effect_ptrs;
-
-    std::vector<std::vector<std::shared_ptr<DotBodyInterface>>> generate_collision_search_mapping();
 
     public:
 
@@ -78,13 +77,16 @@ void DotEngine::update(const float delta_t)
     }
 
     // Collision calculation
-    #pragma omp parallel for
-    for(size_t i = 0; i < m_body_ptrs.size(); i++)
+    const std::vector<CollisionPoolResult> collision_sort_result = generate_collision_pool(m_body_ptrs);
+    #pragma omp parallel for num_threads(4)
+    for(size_t i = 0; i < collision_sort_result.size(); i++)
     {
-        std::shared_ptr<DotBodyInterface> body_ptr_i = m_body_ptrs[i];
-        for(size_t j = (i+1); j < m_body_ptrs.size(); j++)
+        const size_t body_i_id = collision_sort_result[i].master_id;
+        std::shared_ptr<DotBodyInterface> body_ptr_i = m_body_ptrs[body_i_id];
+        for(size_t j = 0; j < collision_sort_result[i].slave_ids.size(); j++)
         {
-            const std::shared_ptr<DotBodyInterface>& body_ptr_j = m_body_ptrs[j];
+            const size_t body_j_id = collision_sort_result[i].slave_ids[j];
+            const std::shared_ptr<DotBodyInterface>& body_ptr_j = m_body_ptrs[body_j_id];
             DotCollisionInfo info = DotBodyInterface::detectCollision(body_ptr_i, body_ptr_j);
             if( info.has_collision )
             {
@@ -106,21 +108,4 @@ void DotEngine::update(const float delta_t)
         std::shared_ptr<DotBodyInterface> body_ptr = m_body_ptrs[i];
         body_ptr->applyKinematic(delta_t);
     }
-}
-
-std::vector<std::vector<std::shared_ptr<DotBodyInterface>>> DotEngine::generate_collision_search_mapping()
-{
-    std::vector<std::vector<std::shared_ptr<DotBodyInterface>>> out;
-
-    // Collision calculation
-    const size_t nbr_body = m_body_ptrs.size();
-    for(size_t i = 0; i < m_body_ptrs.size(); i++)
-    {
-        std::vector<std::shared_ptr<DotBodyInterface>> map_i;
-        map_i.reserve(nbr_body-i);
-        map_i.push_back(m_body_ptrs[i]);
-        for(size_t j = (i+1); j < m_body_ptrs.size(); j++) map_i.push_back(m_body_ptrs[j]);
-        out.push_back(map_i);
-    }
-    return out;
 }

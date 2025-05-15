@@ -18,12 +18,12 @@ DotEngine engine;
 bool end = false;
 std::mutex physic_lock;
 
+float delta_t_sum;
+float delta_t_phys_sum;
+int delta_t_nbr;
+
 void physic_loop()
 {
-
-    float delta_t_sum;
-    float delta_t_phys_sum;
-    int delta_t_nbr;
 
     std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(5000);
     float physic_delta_t = float(physic_delta_t_micro.count())/1000000.0;
@@ -56,20 +56,15 @@ void physic_loop()
 
         // Monitor dt
         std::chrono::microseconds delta_t_micro = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
         const float delta_t = float(delta_t_micro.count());
         const float delta_t_phys = float(physic_time.count());
 
+        physic_lock.lock();
         delta_t_nbr += 1;
         delta_t_sum+= delta_t;
         delta_t_phys_sum += delta_t_phys;
-        if(delta_t_nbr >= 10)
-        {
-            std::cout << "Mean Physic Loop Time \t\t= " << (delta_t_sum/float(delta_t_nbr)) << "us" << std::endl;
-            std::cout << "Mean Physic Computation Time \t= " << (delta_t_phys_sum/float(delta_t_nbr)) << "us" << std::endl;
-            delta_t_nbr = 0;
-            delta_t_sum = 0.0;
-            delta_t_phys_sum = 0.0;
-        }
+        physic_lock.unlock();
 
     }
 }
@@ -114,7 +109,8 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( 50000, 100000 );
-    for(size_t i = 0 ; i < 1000; i++)
+    const size_t nbr_useless_particules = 10000;
+    for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
         truc_ptr->set_hardness(0.01);
@@ -251,6 +247,9 @@ int main()
     float set_player_damping = default_player_damping;
     Float2d set_player_ctrl_force = Float2d();
 
+    //  Print counter
+    int delta_print_itt = 0;
+
 
     // Boucle de simulation / affichage
     while (window.isOpen())
@@ -308,6 +307,21 @@ int main()
         ball_2_position = ball_ptr_2->get_position();
         ball_3_position = ball_ptr_3->get_position();
         ground_position = ground_ptr->get_position();
+
+        // print dt
+        if(delta_print_itt >= 60)
+        {
+            std::cout << "Mean Physic Loop Time \t\t= " << (delta_t_sum/float(delta_t_nbr)) << "us" << std::endl;
+            std::cout << "Mean Physic Computation Time \t= " << (delta_t_phys_sum/float(delta_t_nbr)) << "us" << std::endl;
+            delta_t_nbr = 0;
+            delta_t_sum = 0.0;
+            delta_t_phys_sum = 0.0;
+            delta_print_itt = 0;
+        }
+        else
+        {
+            delta_print_itt += 1;
+        }
 
         physic_lock.unlock();
 
