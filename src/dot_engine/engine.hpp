@@ -78,6 +78,7 @@ void DotEngine::update(const float delta_t)
     }
 
     // Collision calculation
+    #pragma omp parallel for
     for(size_t i = 0; i < m_body_ptrs.size(); i++)
     {
         std::shared_ptr<DotBodyInterface> body_ptr_i = m_body_ptrs[i];
@@ -87,17 +88,19 @@ void DotEngine::update(const float delta_t)
             DotCollisionInfo info = DotBodyInterface::detectCollision(body_ptr_i, body_ptr_j);
             if( info.has_collision )
             {
+                #pragma omp critical
+                {
                     for(size_t k = 0; k < m_collision_effect_ptrs.size() ; k++)
                     {
                         const std::shared_ptr<DotCollisionEffectInterface>& effet_ptr = m_collision_effect_ptrs[k];
                         effet_ptr->apply(delta_t, info);
                     }
+                }
             }
         }
     }
 
     // Kinematics
-    //#pragma omp parallel for
     for(size_t i = 0; i < m_body_ptrs.size(); i++)
     {
         std::shared_ptr<DotBodyInterface> body_ptr = m_body_ptrs[i];

@@ -25,7 +25,7 @@ void physic_loop()
     float delta_t_phys_sum;
     int delta_t_nbr;
 
-    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(500);
+    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(5000);
     float physic_delta_t = float(physic_delta_t_micro.count())/1000000.0;
     std::cout << "physic_dt = " << physic_delta_t << std::endl;
 
@@ -95,7 +95,7 @@ int main()
 
 
     const float hard_hardness = 100000;
-    const float obj_damping = 2000.0;
+    const float obj_damping = 10000.0;
     const float max_speed = 500.0;
     const float default_player_size = 30.0;
     const float jumping_player_size = 60.0;
@@ -114,7 +114,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( 50000, 100000 );
-    for(size_t i = 0 ; i < 100; i++)
+    for(size_t i = 0 ; i < 1000; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
         truc_ptr->set_hardness(0.01);
