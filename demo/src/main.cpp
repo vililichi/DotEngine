@@ -83,7 +83,7 @@ int main()
     std::shared_ptr<DotUniversalLawDrag> drag_law = std::make_shared<DotUniversalLawDrag>(DotUniversalLawDrag(0.5));
     engine.register_universal_law(drag_law);
 
-    std::shared_ptr<DotUniversalLawGravityBetweenObjects> gravity_law = std::make_shared<DotUniversalLawGravityBetweenObjects>(DotUniversalLawGravityBetweenObjects(1000.0));
+    std::shared_ptr<DotUniversalLawAstralGravity> gravity_law = std::make_shared<DotUniversalLawAstralGravity>(DotUniversalLawAstralGravity(1000.0));
     engine.register_universal_law(gravity_law);
 
     //std::shared_ptr<DotUniversalLawGravity> grav_law = std::make_shared<DotUniversalLawGravity>(DotUniversalLawGravity(Float2d(0.0, -100)));
@@ -161,6 +161,7 @@ int main()
     ground_ptr->set_size(1000.0);
     ground_ptr->set_position(Float2d(480.0, -1500));
     engine.register_body(ground_ptr);
+    gravity_law->register_star(ground_ptr);
 
     // Ajout des forces
     const float player_ctrl_force = 10000;
