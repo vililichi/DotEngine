@@ -25,7 +25,7 @@ int delta_t_nbr;
 void physic_loop()
 {
 
-    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(5000);
+    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(2500);
     float physic_delta_t = float(physic_delta_t_micro.count())/1000000.0;
     std::cout << "physic_dt = " << physic_delta_t << std::endl;
 
@@ -108,13 +108,13 @@ int main()
     engine.register_body(player_ptr);
 
     std::mt19937 gen( 0 );
-    std::uniform_real_distribution<float> dist( 50000, 100000 );
+    std::uniform_real_distribution<float> dist( -50000, 50000 );
     const size_t nbr_useless_particules = 10000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
-        truc_ptr->set_hardness(0.01);
-        truc_ptr->set_damping(0.01);
+        truc_ptr->set_hardness(0.0);
+        truc_ptr->set_damping(0.0);
         truc_ptr->set_mass(1.0);
         truc_ptr->set_size(1.0);
         truc_ptr->set_position(Float2d(dist(gen), -dist(gen)));

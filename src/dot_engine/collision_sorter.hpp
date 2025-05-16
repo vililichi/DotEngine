@@ -6,7 +6,30 @@
 #pragma once
 
 constexpr size_t COLLISION_SORTER_MAX_DEPT = 16;
-constexpr size_t COLLISION_SORTER_MINIMUM_BODY = 96;
+constexpr size_t COLLISION_SORTER_MINIMUM_BODY = 32;
+
+constexpr size_t ZONES_RESULT_MEMORY_SEGMENT_NBR = 1000;
+class ZonesResultMemory{
+    private:
+        static std::array<std::vector<size_t>,4> zones_result[ZONES_RESULT_MEMORY_SEGMENT_NBR];
+        static size_t counter;
+    public:
+        static bool available()
+        {
+            return counter < ZONES_RESULT_MEMORY_SEGMENT_NBR;
+        }
+        static std::array<std::vector<size_t>,4>& get()
+        {
+            counter += 1;
+            return zones_result[counter - 1];
+        }
+        static void reset() {
+            counter = 0;
+        }
+};
+std::array<std::vector<size_t>,4> ZonesResultMemory::zones_result[ZONES_RESULT_MEMORY_SEGMENT_NBR];
+size_t ZonesResultMemory::counter = 0;
+
 
 void collision_quad_sort(
     const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, 
@@ -104,16 +127,10 @@ void collision_quad_sort(
 
 }
 
-struct CollisionPoolResult
-{
-    size_t master_id;
-    std::vector<size_t> slave_ids;
-};
-
 size_t generate_collision_pool_imp(
     const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, 
     const std::vector<size_t>& body_ids, 
-    std::vector<CollisionPoolResult>& out, 
+    std::vector<std::vector<size_t>>& out, 
     const size_t initial_out_size, 
     const size_t depth,
     std::vector<size_t>& zone_hybrid_result,
@@ -131,26 +148,23 @@ size_t generate_collision_pool_imp(
             const size_t result_size = nbr_body-body_id_offset;
             if(result_size > 0)
             {
-                out[size_out] = CollisionPoolResult();
-                out[size_out].master_id = body_ids[i];
-                out[size_out].slave_ids.resize(result_size);
-                std::memcpy(out[size_out].slave_ids.data(), body_ids.data() + body_id_offset, result_size*sizeof(size_t));
+                out[size_out].resize(result_size+1);
+                out[size_out][0] = body_ids[i];
+                std::memcpy(out[size_out].data()+1, body_ids.data() + body_id_offset, result_size*sizeof(size_t));
                 size_out += 1;
             }
         }
         return size_out;
     }
 
-    std::array<std::vector<size_t>,4> zones_result;
+    std::array<std::vector<size_t>,4> backup;
+    std::array<std::vector<size_t>,4> zones_result = ZonesResultMemory::available() ? ZonesResultMemory::get() : backup;
     collision_quad_sort(body_ptrs, body_ids, zone_hybrid_result, zone_hybrid_valid_result, zones_result);
     const size_t zones_sizes[4] = {zones_result[0].size(), zones_result[1].size(), zones_result[2].size(), zones_result[3].size()};
     const size_t hybrid_size = zone_hybrid_result.size();
 
     for( size_t i = 0 ; i < hybrid_size; i++ )
     {
-        out[size_out] = CollisionPoolResult();
-        out[size_out].master_id = zone_hybrid_result[i];
-
         size_t size_to_reserve = (hybrid_size-i);
         for( uint8_t k = 0; k < 4; k++)
         {
@@ -160,8 +174,9 @@ size_t generate_collision_pool_imp(
             }
         }
 
-        out[size_out].slave_ids.resize(size_to_reserve);
-        size_t real_size = 0;
+        out[size_out].resize(size_to_reserve+1);
+        out[size_out][0] = zone_hybrid_result[i];
+        size_t real_size = 1;
 
         for( size_t j = (i+1) ; j < hybrid_size; j++ )
         {
@@ -172,7 +187,7 @@ size_t generate_collision_pool_imp(
                 (zone_hybrid_valid_result[i][3] && zone_hybrid_valid_result[j][3])
             )
             {
-                out[size_out].slave_ids[real_size] = zone_hybrid_result[j];
+                out[size_out][real_size] = zone_hybrid_result[j];
                 real_size += 1;
             }
         }
@@ -181,12 +196,12 @@ size_t generate_collision_pool_imp(
         {
             if(zone_hybrid_valid_result[i][k])
             {
-                std::memcpy(out[size_out].slave_ids.data()+real_size, zones_result[k].data(), zones_sizes[k]*sizeof(size_t));
+                std::memcpy(out[size_out].data()+real_size, zones_result[k].data(), zones_sizes[k]*sizeof(size_t));
                 real_size += zones_sizes[k];
             }
         }
 
-        out[size_out].slave_ids.resize(real_size);
+        out[size_out].resize(real_size);
         size_out += 1;
     }
 
@@ -198,23 +213,23 @@ size_t generate_collision_pool_imp(
     return size_out;
 }
 
-std::vector<CollisionPoolResult> generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs)
+void generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, std::vector<std::vector<size_t>>& out_buffer)
 {
+    ZonesResultMemory::reset();
+
     const size_t nbr_body = body_ptrs.size();
 
     std::vector<size_t> body_ids;
     body_ids.resize(nbr_body);
     for( size_t i = 0 ; i < body_ids.size(); i++)body_ids[i] = i;
 
-    std::vector<CollisionPoolResult> out;
-    out.resize(nbr_body);
+    out_buffer.resize(nbr_body);
 
     std::vector<size_t> zone_hybrid_result;
     std::vector<std::array<bool, 4>> zone_hybrid_valid_result;
 
-    const size_t out_size = generate_collision_pool_imp(body_ptrs, body_ids, out, 0, 0, zone_hybrid_result, zone_hybrid_valid_result);
+    const size_t out_size = generate_collision_pool_imp(body_ptrs, body_ids, out_buffer, 0, 0, zone_hybrid_result, zone_hybrid_valid_result);
 
-    out.resize(out_size);
-    return out;
+    out_buffer.resize(out_size);
 
 }

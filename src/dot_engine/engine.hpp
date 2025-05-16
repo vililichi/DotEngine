@@ -11,6 +11,8 @@ class DotEngine {
     std::vector<std::shared_ptr<DotUniversalLawInterface>> m_universal_law_ptrs;
     std::vector<std::shared_ptr<DotCollisionEffectInterface>> m_collision_effect_ptrs;
 
+    std::vector<std::vector<size_t>> m_collision_sort_result_buffer;
+
     public:
 
     void update(const float delta_t);
@@ -77,15 +79,15 @@ void DotEngine::update(const float delta_t)
     }
 
     // Collision calculation
-    const std::vector<CollisionPoolResult> collision_sort_result = generate_collision_pool(m_body_ptrs);
+    generate_collision_pool(m_body_ptrs, m_collision_sort_result_buffer);
     #pragma omp parallel for num_threads(4)
-    for(size_t i = 0; i < collision_sort_result.size(); i++)
+    for(size_t i = 0; i < m_collision_sort_result_buffer.size(); i++)
     {
-        const size_t body_i_id = collision_sort_result[i].master_id;
+        const size_t body_i_id = m_collision_sort_result_buffer[i][0];
         std::shared_ptr<DotBodyInterface> body_ptr_i = m_body_ptrs[body_i_id];
-        for(size_t j = 0; j < collision_sort_result[i].slave_ids.size(); j++)
+        for(size_t j = 1; j < m_collision_sort_result_buffer[i].size(); j++)
         {
-            const size_t body_j_id = collision_sort_result[i].slave_ids[j];
+            const size_t body_j_id = m_collision_sort_result_buffer[i][j];
             const std::shared_ptr<DotBodyInterface>& body_ptr_j = m_body_ptrs[body_j_id];
             DotCollisionInfo info = DotBodyInterface::detectCollision(body_ptr_i, body_ptr_j);
             if( info.has_collision )
