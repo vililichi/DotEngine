@@ -58,22 +58,26 @@ class DotSpringLink : public DotSpingLinkBase
             return;
         }
 
-        const Float2d diff = target_ptr_a->get_position() - target_ptr_b->get_position();
-        const Float2d diff_deriv = target_ptr_a->get_speed() - target_ptr_b->get_speed();
+        const Float2d diff_a2b = target_ptr_b->get_position() - target_ptr_a->get_position();
+        const Float2d diff_deriv_a2b = target_ptr_b->get_speed() - target_ptr_a->get_speed();
 
-        const float dist = diff.norm();
-        const Float2d dir_b2a = diff/dist;
-        const float dist_deriv = -Float2d::dot_product(diff_deriv, dir_b2a);
+        const float dist = diff_a2b.norm();
+        const Float2d dir_a2b = diff_a2b/dist;
+        const float dist_deriv = Float2d::dot_product(diff_deriv_a2b, dir_a2b);
 
-        const float delta_dist = dist - m_l;
-        const float magnitude = delta_dist * m_k;
-        const float magnitude_deriv = dist_deriv * m_k;
-        const float magnitude_damping = -dist_deriv * m_b;
+        const float delta_dist = m_l - dist ;
+        const float delta_dist_deriv = -dist_deriv;
 
-        const Float2d force_on_b = dir_b2a * (magnitude+magnitude_damping);
-        const Float2d force_on_a = -force_on_b;
-        const Float2d force_on_b_deriv = dir_b2a * magnitude_deriv;
-        const Float2d force_on_a_deriv = -force_on_b_deriv;
+        const float magnitude = -delta_dist * m_k;
+        const float magnitude_deriv = -delta_dist_deriv * m_k;
+        const float magnitude_damping = -delta_dist_deriv * m_b;
+
+        const Float2d force_on_a = dir_a2b * (magnitude+magnitude_damping);
+        const Float2d force_on_b = -force_on_a;
+        
+        const Float2d force_on_a_deriv = dir_a2b * magnitude_deriv;
+        const Float2d force_on_b_deriv = -force_on_a_deriv;
+        
         
         target_ptr_a->addForce(force_on_a, force_on_a_deriv);
         target_ptr_b->addForce(force_on_b, force_on_b_deriv);
@@ -99,30 +103,32 @@ class DotRopeLink : public DotSpingLinkBase
             return;
         }
 
-        const Float2d diff = target_ptr_a->get_position() - target_ptr_b->get_position();
-        const float dist = diff.norm();
-        const float delta_dist = dist - m_l;
+        const Float2d diff_a2b = target_ptr_b->get_position() - target_ptr_a->get_position();
+        const float dist = diff_a2b.norm();
+        const float delta_dist = m_l - dist ;
 
-        if( delta_dist > 0)
+        if( delta_dist < 0)
         {
-            const Float2d dir_b2a = diff/dist;
-            const Float2d diff_deriv = target_ptr_a->get_speed() - target_ptr_b->get_speed();
-            const float dist_deriv = -Float2d::dot_product(diff_deriv, dir_b2a);
-            const float magnitude = delta_dist * m_k;
-            const float magnitude_deriv = dist_deriv * m_k;
-            const float magnitude_damping = -dist_deriv * m_b;
+            const Float2d diff_deriv_a2b = target_ptr_b->get_speed() - target_ptr_a->get_speed();
 
-            const Float2d force_on_b = dir_b2a * (magnitude+magnitude_damping);
-            const Float2d force_on_a = -force_on_b;
+            const Float2d dir_a2b = diff_a2b/dist;
+            const float dist_deriv = Float2d::dot_product(diff_deriv_a2b, dir_a2b);
 
-            const Float2d force_on_b_deriv = dir_b2a * magnitude_deriv;
-            const Float2d force_on_a_deriv = -force_on_b_deriv;
+            const float delta_dist_deriv = -dist_deriv;
+
+            const float magnitude = -delta_dist * m_k;
+            const float magnitude_deriv = -delta_dist_deriv * m_k;
+            const float magnitude_damping = -delta_dist_deriv * m_b;
+
+            const Float2d force_on_a = dir_a2b * (magnitude+magnitude_damping);
+            const Float2d force_on_b = -force_on_a;
             
-
+            const Float2d force_on_a_deriv = dir_a2b * magnitude_deriv;
+            const Float2d force_on_b_deriv = -force_on_a_deriv;
+            
+            
             target_ptr_a->addForce(force_on_a, force_on_a_deriv);
             target_ptr_b->addForce(force_on_b, force_on_b_deriv);
         }
-
-
     }
 };

@@ -5,10 +5,10 @@
 #include <algorithm>
 #pragma once
 
-constexpr size_t COLLISION_SORTER_MAX_DEPT = 16;
+constexpr size_t COLLISION_SORTER_MAX_DEPT = 32;
 constexpr size_t COLLISION_SORTER_MINIMUM_BODY = 32;
 
-constexpr size_t ZONES_RESULT_MEMORY_SEGMENT_NBR = 1000;
+constexpr size_t ZONES_RESULT_MEMORY_SEGMENT_NBR = 500;
 class ZonesResultMemory{
     private:
         static std::array<std::vector<size_t>,4> zones_result[ZONES_RESULT_MEMORY_SEGMENT_NBR];

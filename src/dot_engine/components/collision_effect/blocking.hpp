@@ -18,11 +18,10 @@ class DotBlockingCollisionEffect : public DotCollisionEffectInterface
         // Compute forces
         const float hardness_a = collision_info.body_a->get_hardness();
         const float hardness_b = collision_info.body_b->get_hardness();
-        const float equivalent_hardness = 1/( (1/hardness_a) + (1/hardness_b) );
-        const float deformation = collision_info.collision_deformation;
+        const float equivalent_hardness = (hardness_a > 0.01 && hardness_b > 0.01) ? 1/( (1/hardness_a) + (1/hardness_b) ) : 0.0;
 
-        float force_magnitude = deformation * equivalent_hardness;
-        const float force_deriv_magnitude = collision_info.collision_deformation_derivation * equivalent_hardness;
+        Float2d force_on_a =  -collision_info.a_constraint * equivalent_hardness;
+        const Float2d force_on_a_deriv = -collision_info.a_constraint_deriv * equivalent_hardness;
 
         if(
             collision_info.body_a->has_damping() && 
@@ -31,19 +30,15 @@ class DotBlockingCollisionEffect : public DotCollisionEffectInterface
         {
             const float damping_a = collision_info.body_a->get_damping();
             const float damping_b = collision_info.body_b->get_damping();
-            const float equivalent_damping = 1/( (1/damping_a) + (1/damping_b) );
-            force_magnitude += -collision_info.collision_deformation_derivation * equivalent_damping;
+            const float equivalent_damping = (damping_a > 0.01 && damping_b > 0.01) ? 1/( (1/damping_a) + (1/damping_b) ) : 0.0;
+            force_on_a -= collision_info.a_constraint_deriv * equivalent_damping;
         }
 
-        const Float2d force_on_a = collision_info.collision_normal_for_body_a * force_magnitude;
         const Float2d force_on_b = -force_on_a;
+        const Float2d force_on_b_deriv = -force_on_a_deriv;
 
-        const Float2d force_deriv_on_a = collision_info.collision_normal_for_body_a * force_deriv_magnitude;
-        const Float2d force_deriv_on_b = -force_deriv_on_a;
-
-        collision_info.body_a->addForce( force_on_a, force_deriv_on_a );
-        collision_info.body_b->addForce( force_on_b, force_deriv_on_b );
-
+        collision_info.body_a->addForce( force_on_a, force_on_a_deriv );
+        collision_info.body_b->addForce( force_on_b, force_on_b_deriv );
 
     }
 };

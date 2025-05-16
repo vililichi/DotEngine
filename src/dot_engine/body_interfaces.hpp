@@ -11,10 +11,12 @@ struct DotCollisionInfo
     const std::shared_ptr<DotBodyInterface>& body_a;
     const std::shared_ptr<DotBodyInterface>& body_b;
     Float2d collision_point;
-    Float2d collision_normal_for_body_a;
-    Float2d collision_normal_for_body_b;
-    float collision_deformation;
-    float collision_deformation_derivation;
+
+    Float2d a_constraint ;
+    Float2d b_constraint ;
+    
+    Float2d a_constraint_deriv ;
+    Float2d b_constraint_deriv ;
 
     DotCollisionInfo(const std::shared_ptr<DotBodyInterface>& _body_a, const std::shared_ptr<DotBodyInterface>& _body_b):
     has_collision(false), 
@@ -72,33 +74,34 @@ class DotBodyInterface: public Destroyable{
         const Float2d pos_a = body_a->get_position();
         const Float2d pos_b = body_b->get_position();
 
-        const Float2d diff = pos_a - pos_b;
-        const float dist_sq = diff.norm2();
+        const Float2d diff_a2b = pos_b - pos_a;
+        const float dist_sq = diff_a2b.norm2();
 
         const float critical_dist = size_a + size_b;
         const float critical_dist_sq = critical_dist * critical_dist;
 
         if( dist_sq < critical_dist_sq)
         {
-            const Float2d speed_a = body_a->get_position();
-            const Float2d speed_b = body_b->get_position();
 
-            const float dist = sqrtf(dist_sq);
-            const float deformation = critical_dist - dist;
+            const Float2d speed_a = body_a->get_speed();
+            const Float2d speed_b = body_b->get_speed();
+            
+            const Float2d diff_deriv_a2b = speed_b - speed_a;
 
-            const Float2d dir_a = diff/dist;
-            const Float2d dir_b = -dir_a;
+            const float dist = sqrt(dist_sq);
+            const Float2d dir_a2b = diff_a2b/dist;
+            const float dist_deriv = Float2d::dot_product(diff_deriv_a2b, dir_a2b);
 
-            const Float2d diff_deriv = speed_a - speed_b;
-            const float deformation_deriv = -Float2d::dot_product(diff_deriv, dir_a);
+            const float delta_dist = critical_dist - dist ;
+            const float delta_dist_deriv = -dist_deriv;
 
-            const Float2d point = pos_b + (diff * (size_b/(critical_dist)));
+            const Float2d point = pos_a + (diff_a2b * (size_a/(critical_dist)));
 
             out.has_collision = true;
-            out.collision_normal_for_body_a = dir_a;
-            out.collision_normal_for_body_b = dir_b;
-            out.collision_deformation = deformation;
-            out.collision_deformation_derivation = deformation_deriv;
+            out.a_constraint = dir_a2b * delta_dist;
+            out.b_constraint = -out.a_constraint;
+            out.a_constraint_deriv = dir_a2b * delta_dist_deriv;
+            out.b_constraint_deriv = -out.a_constraint_deriv;
             out.collision_point = point;
         }
         

@@ -6,6 +6,7 @@
 #include "../../src/dot_engine/components/universal_law/drag.hpp"
 #include "../../src/dot_engine/components/force/targeted_force.hpp"
 #include "../../src/dot_engine/components/force/link.hpp"
+#include "../../src/dot_engine/components/force/jump.hpp"
 #include "../../src/dot_engine/components/collision_effect/blocking.hpp"
 #include <chrono>
 #include <iostream>
@@ -25,7 +26,7 @@ int delta_t_nbr;
 void physic_loop()
 {
 
-    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(2500);
+    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(10000);
     float physic_delta_t = float(physic_delta_t_micro.count())/1000000.0;
     std::cout << "physic_dt = " << physic_delta_t << std::endl;
 
@@ -81,26 +82,18 @@ int main()
     std::shared_ptr<DotUniversalLawAstralGravity> gravity_law = std::make_shared<DotUniversalLawAstralGravity>(DotUniversalLawAstralGravity(1000.0));
     engine.register_universal_law(gravity_law);
 
-    //std::shared_ptr<DotUniversalLawGravity> grav_law = std::make_shared<DotUniversalLawGravity>(DotUniversalLawGravity(Float2d(0.0, -100)));
-    //engine.register_universal_law(grav_law);
-
     // Ajout des effets de collision
     std::shared_ptr<DotBlockingCollisionEffect> blocking_collision_effect = std::make_shared<DotBlockingCollisionEffect>(DotBlockingCollisionEffect());
     engine.register_collision_effect(blocking_collision_effect);
 
 
-    const float hard_hardness = 100000;
-    const float obj_damping = 10000.0;
+    const float hard_hardness = 50000.0;
+    const float obj_damping = 500.0;
     const float max_speed = 500.0;
     const float default_player_size = 30.0;
-    const float jumping_player_size = 60.0;
-    const float default_player_hardness = hard_hardness;
-    const float jumping_player_hardness = hard_hardness/2;
-    const float default_player_damping = obj_damping;
-    const float jumping_player_damping = 0.01;
     std::shared_ptr<DotLimitedDynamicRigidBody> player_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
-    player_ptr->set_hardness(default_player_hardness);
-    player_ptr->set_damping(default_player_damping);
+    player_ptr->set_hardness(hard_hardness);
+    player_ptr->set_damping(obj_damping);
     player_ptr->set_mass(20.0);
     player_ptr->set_size(default_player_size);
     player_ptr->set_position(Float2d(540.0, -300.0));
@@ -109,7 +102,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 10000;
+    const size_t nbr_useless_particules = 50000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -165,8 +158,17 @@ int main()
     player_controler_force->set_target(player_ptr);
     engine.register_force(player_controler_force);
 
-    const float ball_spring_hardness = 5000.0;
-    const float ball_spring_damping = 200.0;
+    const float player_jmp_force = 100000;
+    std::shared_ptr<DotJumpingForce> player_jump_force = std::make_shared<DotJumpingForce>(DotJumpingForce());
+    player_jump_force->set_jumper(player_ptr);
+    player_jump_force->add_wall(ground_ptr);
+    player_jump_force->set_degradation_rate(player_jmp_force*4);
+    player_jump_force->set_distance_threshold(4.0);
+    player_jump_force->set_initial_value(player_jmp_force);
+    engine.register_force(player_jump_force);
+
+    const float ball_spring_hardness = 5000.0; //hard_hardness;
+    const float ball_spring_damping = 100.0; //obj_damping;
     const float ball_spring_length = 30.0;
     std::shared_ptr<DotSpringLink> spring_1_2 = std::make_shared<DotSpringLink>(DotSpringLink());
     spring_1_2->set_hardness(ball_spring_hardness);
@@ -242,10 +244,8 @@ int main()
     Float2d ground_position = ground_ptr->get_position();
 
     // values to set
-    float set_player_size = default_player_size;
-    float set_player_hardness = default_player_hardness;
-    float set_player_damping = default_player_damping;
     Float2d set_player_ctrl_force = Float2d();
+    float player_jump = false;
 
     //  Print counter
     int delta_print_itt = 0;
@@ -281,23 +281,17 @@ int main()
         }
 
         if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
-            set_player_hardness = jumping_player_hardness;
-            set_player_size = jumping_player_size;
-            set_player_damping = jumping_player_damping;
+            player_jump = true;
         }
         else
         {
-            set_player_hardness = default_player_hardness;
-            set_player_size = default_player_size;
-            set_player_damping = default_player_damping;
+            player_jump = false;
         }
 
         // Communication avec le moteur physique
         physic_lock.lock();
         // values to set
-        player_ptr->set_size(set_player_size);
-        player_ptr->set_hardness(set_player_hardness);
-        player_ptr->set_damping(set_player_damping);
+        player_jump_force->set_is_active(player_jump);
         player_controler_force->set_value(set_player_ctrl_force);
 
         // values to get
