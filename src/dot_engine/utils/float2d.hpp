@@ -79,6 +79,14 @@ class Float2d
         return operator/(*this, norm());
     }
 
+    Float2d perpendicular_clock()const{
+        return Float2d(m_data[1], -m_data[0]);
+    }
+
+    Float2d perpendicular_counterclock()const{
+        return Float2d(-m_data[1], m_data[0]);
+    }
+
     static Float2d normLimit(const Float2d& u,const float max_norm)
     {
         if( u.norm2() < (max_norm*max_norm)) return u;

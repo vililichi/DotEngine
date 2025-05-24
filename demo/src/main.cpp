@@ -7,6 +7,7 @@
 #include "../../src/dot_engine/components/force/targeted_force.hpp"
 #include "../../src/dot_engine/components/force/link.hpp"
 #include "../../src/dot_engine/components/force/jump.hpp"
+#include "../../src/dot_engine/components/force/run.hpp"
 #include "../../src/dot_engine/components/collision_effect/blocking.hpp"
 #include <chrono>
 #include <iostream>
@@ -99,7 +100,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 10000;
+    const size_t nbr_useless_particules = 0;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -151,20 +152,38 @@ int main()
     engine.register_body(ground_ptr);
     gravity_law->register_star(ground_ptr);
 
-    // Ajout des forces
-    const float player_ctrl_force = 10000;
-    std::shared_ptr<DotTargetedForce> player_controler_force = std::make_shared<DotTargetedForce>(DotTargetedForce());
-    player_controler_force->set_target(player_ptr);
-    engine.register_force(player_controler_force);
+    std::shared_ptr<DotStaticRigidBody> ground2_ptr = std::make_shared<DotStaticRigidBody>(DotStaticRigidBody());
+    ground2_ptr->set_hardness(hard_hardness);
+    ground2_ptr->set_damping(obj_damping);
+    ground2_ptr->set_mass(1000000.0);
+    ground2_ptr->set_size(1000.0);
+    ground2_ptr->set_position(Float2d(480.0, 1000));
+    ground2_ptr->set_weak_collision(true);
+    engine.register_body(ground2_ptr);
+    gravity_law->register_star(ground2_ptr);
 
+    // Ajout des forces
     const float player_jmp_force = 100000;
     std::shared_ptr<DotJumpingForce> player_jump_force = std::make_shared<DotJumpingForce>(DotJumpingForce());
     player_jump_force->set_jumper(player_ptr);
     player_jump_force->add_wall(ground_ptr);
+    player_jump_force->add_wall(ground2_ptr);
     player_jump_force->set_degradation_rate(player_jmp_force*4);
     player_jump_force->set_distance_threshold(4.0);
     player_jump_force->set_initial_value(player_jmp_force);
     engine.register_force(player_jump_force);
+
+    const float player_run_force_magnitude = 20000;
+    std::shared_ptr<DotRunningForce> player_run_force = std::make_shared<DotRunningForce>(DotRunningForce());
+    player_run_force->set_runner(player_ptr);
+    player_run_force->add_floor(ball_ptr_1, 3.0);
+    player_run_force->add_floor(ball_ptr_2, 3.0);
+    player_run_force->add_floor(ball_ptr_3, 3.0);
+    player_run_force->add_floor(ground_ptr, 1.0);
+    player_run_force->add_floor(ground2_ptr, 1.0);
+    player_run_force->set_distance_threshold(4.0);
+    player_run_force->set_running_value(player_run_force_magnitude);
+    engine.register_force(player_run_force);
 
     const float ball_spring_hardness = 50000.0; //hard_hardness;
     const float ball_spring_damping = 500.0; //obj_damping;
@@ -227,10 +246,18 @@ int main()
     ball_triangle.setPoint(2, sf::Vector2f(ball_ptr_3->get_position().x(), -ball_ptr_3->get_position().y()));
 
     sf::CircleShape ground_circle;
+    ground_circle.setPointCount(64);
     ground_circle.setFillColor(sf::Color(255, 255, 255));
     ground_circle.setRadius(ground_ptr->get_size());
     ground_circle.setOrigin(sf::Vector2f(ground_ptr->get_size(), ground_ptr->get_size()));
     ground_circle.setPosition(sf::Vector2f(ground_ptr->get_position().x(), -ground_ptr->get_position().y()));
+
+    sf::CircleShape ground2_circle;
+    ground2_circle.setPointCount(64);
+    ground2_circle.setFillColor(sf::Color(255, 255, 255));
+    ground2_circle.setRadius(ground2_ptr->get_size());
+    ground2_circle.setOrigin(sf::Vector2f(ground2_ptr->get_size(), ground2_ptr->get_size()));
+    ground2_circle.setPosition(sf::Vector2f(ground2_ptr->get_position().x(), -ground2_ptr->get_position().y()));
 
     std::thread physic_thread( physic_loop );
 
@@ -240,15 +267,16 @@ int main()
     Float2d ball_1_position = ball_ptr_1->get_position();
     Float2d ball_2_position = ball_ptr_2->get_position();
     Float2d ball_3_position = ball_ptr_3->get_position();
-    Float2d ground_position = ground_ptr->get_position();
 
     // values to set
-    Float2d set_player_ctrl_force = Float2d();
+    int8_t set_player_run_dir = 0;
     float player_jump = false;
 
     //  Print counter
     int delta_print_itt = 0;
 
+    // camera
+    sf::View view(sf::FloatRect({540.f, 360.f}, {1080, 720}));
 
     // Boucle de simulation / affichage
     while (window.isOpen())
@@ -264,20 +292,9 @@ int main()
 
         // Gesion des contrôles
         bool key_press = false;
-        set_player_ctrl_force = Float2d();
-        if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {set_player_ctrl_force.y() += player_ctrl_force; key_press = true;}
-        if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {set_player_ctrl_force.y() -= player_ctrl_force; key_press = true;}
-        if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {set_player_ctrl_force.x() -= player_ctrl_force; key_press = true;}
-        if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {set_player_ctrl_force.x() += player_ctrl_force; key_press = true;}
-        if(! key_press)
-        {
-            //Si aucune commande, on freine
-            set_player_ctrl_force = -5.0 * player_ptr->get_speed();
-        }
-        if( (set_player_ctrl_force.norm2()*0.98) > (player_ctrl_force*player_ctrl_force) )
-        {
-            set_player_ctrl_force = set_player_ctrl_force.normalised() * player_ctrl_force;
-        }
+        set_player_run_dir = 0;
+        if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {set_player_run_dir -= 1;}
+        if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {set_player_run_dir += 1;}
 
         if( sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
             player_jump = true;
@@ -291,7 +308,7 @@ int main()
         physic_lock.lock();
         // values to set
         player_jump_force->set_is_active(player_jump);
-        player_controler_force->set_value(set_player_ctrl_force);
+        player_run_force->set_direction(set_player_run_dir);
 
         // values to get
         player_size = player_ptr->get_size();
@@ -299,7 +316,6 @@ int main()
         ball_1_position = ball_ptr_1->get_position();
         ball_2_position = ball_ptr_2->get_position();
         ball_3_position = ball_ptr_3->get_position();
-        ground_position = ground_ptr->get_position();
 
         // print dt
         if(delta_print_itt >= 60)
@@ -326,16 +342,25 @@ int main()
         ball_circle_1.setPosition(sf::Vector2f(ball_1_position.x(), -ball_1_position.y()));
         ball_circle_2.setPosition(sf::Vector2f(ball_2_position.x(), -ball_2_position.y()));
         ball_circle_3.setPosition(sf::Vector2f(ball_3_position.x(), -ball_3_position.y()));
-        ground_circle.setPosition(sf::Vector2f(ground_position.x(), -ground_position.y()));
 
         ball_triangle.setPoint(0, sf::Vector2f(ball_1_position.x(), -ball_1_position.y()));
         ball_triangle.setPoint(1, sf::Vector2f(ball_2_position.x(), -ball_2_position.y()));
         ball_triangle.setPoint(2, sf::Vector2f(ball_3_position.x(), -ball_3_position.y()));
 
+        // Mouvement de la vue
+        const sf::Vector2f player_pos = player_circle.getPosition();
+        const sf::Vector2f view_pos = view.getCenter();
+        const float view_filter_alpha = 0.975;
+        const float view_filter_beta = 1.0 - view_filter_alpha;
+        const sf::Vector2 new_view_pos = sf::Vector2f( (view_filter_beta*player_pos.x) + (view_filter_alpha*view_pos.x), (view_filter_beta*player_pos.y) + (view_filter_alpha*view_pos.y)  );
+        view.setCenter( new_view_pos );
+
         // Affichage
         window.clear();
+        window.setView(view);
         window.draw(ball_triangle);
         window.draw(ground_circle);
+        window.draw(ground2_circle);
         window.draw(ball_circle_1);
         window.draw(ball_circle_2);
         window.draw(ball_circle_3);
