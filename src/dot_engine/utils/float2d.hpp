@@ -87,6 +87,14 @@ class Float2d
         return Float2d(-m_data[1], m_data[0]);
     }
 
+    float angle_rad()const{
+        return atan2f(m_data[1], m_data[0]);
+    }
+
+    float angle_deg()const{
+        return atan2f(m_data[1], m_data[0]) * 57.29577951;
+    }
+
     static Float2d normLimit(const Float2d& u,const float max_norm)
     {
         if( u.norm2() < (max_norm*max_norm)) return u;
