@@ -1,11 +1,13 @@
 #include "../../interfaces.hpp"
-#include <omp.h>
+#include "../body/dynamic_rigid_body.hpp"
+#include "../body/static_rigid_body.hpp"
 
 #pragma once
 
 class DotUniversalLawGravity : public DotUniversalLawInterface
 {
     private:
+    std::vector<DotDynamicRigidBody*> m_body_buffer;
     Float2d m_g;
 
     public:
@@ -14,62 +16,22 @@ class DotUniversalLawGravity : public DotUniversalLawInterface
     DotUniversalLawGravity(const Float2d& g ):m_g(g){}
     virtual ~DotUniversalLawGravity(){}
 
-    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs ) {
-        for(size_t i = 0; i < body_ptrs.size(); i++)
+    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed  ) {
+
+        if( body_list_changed )
         {
-            const std::shared_ptr<DotBodyInterface>& body_ptr = body_ptrs[i];
-            if( body_ptr->has_mass())
+            // sort body
+            m_body_buffer.clear();
+            for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
             {
-                body_ptr->addForce( body_ptr->get_mass() * m_g );
+                DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
+                if(dynamic_body_ptr) m_body_buffer.emplace_back(dynamic_body_ptr);
             }
         }
-    }
-};
 
-class DotUniversalLawGravityBetweenObjects : public DotUniversalLawInterface
-{
-    private:
-    float m_g;
-
-    public:
-    float get_g() const { return m_g; }
-    void set_g( const float value ) { m_g = value; }
-    DotUniversalLawGravityBetweenObjects(const float g ):m_g(g){}
-    virtual ~DotUniversalLawGravityBetweenObjects(){}
-
-    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs ) {
-
-        //#pragma omp parallel for
-        for(size_t i = 0; i < body_ptrs.size(); i++)
+        for(DotDynamicRigidBody* const body_ptr : m_body_buffer )
         {
-            const std::shared_ptr<DotBodyInterface>& body_ptr_i = body_ptrs[i];
-            if( body_ptr_i->has_mass())
-            {
-                const float m_i = body_ptr_i->get_mass();
-                for(size_t j = i+1; j < body_ptrs.size(); j++)
-                {
-                    const std::shared_ptr<DotBodyInterface>& body_ptr_j = body_ptrs[j];
-                    if( body_ptr_j->has_mass())
-                    {
-                        const Float2d diff_j2i = body_ptr_i->get_position() - body_ptr_j->get_position();
-                        const float m_j = body_ptr_j->get_mass();
-                        const float d_sq = diff_j2i.norm2() + 0.01;
-                        const float magnitude = (m_g * m_i * m_j)/d_sq;
-
-                        if(magnitude > 0.5 )
-                        {
-                            const float d = sqrtf(d_sq);
-                            const Float2d dir_j2i = diff_j2i/d;
-                            
-                            const Float2d force_on_j = dir_j2i*magnitude;
-                            const Float2d force_on_i = -force_on_j;
-
-                            body_ptr_i->addForce( force_on_i );
-                            body_ptr_j->addForce( force_on_j );
-                        }
-                    }
-                }
-            }
+            body_ptr->addForce( body_ptr->get_mass() * m_g );
         }
     }
 };
@@ -78,7 +40,8 @@ class DotUniversalLawAstralGravity : public DotUniversalLawInterface
 {
     private:
     float m_g;
-    std::vector<std::shared_ptr<DotBodyInterface>> m_stars;
+    std::vector<std::shared_ptr<DotStaticRigidBody>> m_stars;
+    std::vector<DotDynamicRigidBody*> m_body_buffer;
 
     public:
     float get_g() const { return m_g; }
@@ -86,50 +49,71 @@ class DotUniversalLawAstralGravity : public DotUniversalLawInterface
     DotUniversalLawAstralGravity(const float g ):m_g(g){}
     virtual ~DotUniversalLawAstralGravity(){}
 
-    void register_star(const std::shared_ptr<DotBodyInterface>& body) { m_stars.push_back(body); }
+    void register_star(const std::shared_ptr<DotStaticRigidBody>& body) { m_stars.push_back(body); }
 
-    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs ) {
+    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed  ) {
 
-        // clean star
-
-        for(size_t i = m_stars.size(); i > 0; i--)
+        if( body_list_changed )
         {
-            const size_t index = i - 1;
-            const std::shared_ptr<DotBodyInterface>& star = m_stars[index];
-            if( star->is_destroyed() )
+
+            // clean star
+            for(size_t i = m_stars.size(); i > 0; i--)
             {
-                std::swap(m_stars[index], m_stars.back());
-                m_stars.pop_back();
-                continue;
+                const size_t index = i - 1;
+                const std::shared_ptr<DotStaticRigidBody>& star = m_stars[index];
+
+                if( star->is_destroyed() )
+                {
+                    std::swap(m_stars[index], m_stars.back());
+                    m_stars.pop_back();
+                    continue;
+                }
             }
 
-            const float g_mult_m = star->get_mass() * m_g;
-
-            const size_t nbr_body = body_ptrs.size();
-            for(size_t j = 0; j < nbr_body; j++)
+            // sort body
+            m_body_buffer.clear();
+            for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
             {
-                const std::shared_ptr<DotBodyInterface>& body_ptr_j = body_ptrs[j];
-                if( ! body_ptr_j->has_mass()) continue;
-                for(size_t k = 0; k < i; k++)
+                bool is_a_star = false;
+                for(const std::shared_ptr<DotStaticRigidBody>& star : m_stars)
                 {
-                    if(body_ptr_j.get() ==  star.get()) continue;
+                    if(dynamic_cast<DotStaticRigidBody*>(body_ptr.get()) ==  star.get())
+                    {
+                        is_a_star = true;
+                        break;
+                    }
                 }
+                if(is_a_star) continue;
 
-                const Float2d diff_j2i = star->get_position() - body_ptr_j->get_position();
-                const float m_j = body_ptr_j->get_mass();
-                const float d_sq = diff_j2i.norm2() + 0.01;
-                const float magnitude = (g_mult_m * m_j)/d_sq;
+                
+                DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
+                if(dynamic_body_ptr) m_body_buffer.emplace_back(dynamic_body_ptr);
+            }
+        }
+
+        for(const std::shared_ptr<DotStaticRigidBody>& star : m_stars)
+        {
+            // apply gravity
+            const float g_mult_m = star->get_mass() * m_g;
+            const Float2d star_position = star->get_position();
+
+            for(DotDynamicRigidBody* const body_ptr : m_body_buffer )
+            {
+                const Float2d diff_body2star = star_position - body_ptr->get_position();
+                const float m_body = body_ptr->get_mass();
+                const float d_sq = diff_body2star.norm2() + 0.01;
+                const float magnitude = (g_mult_m * m_body)/d_sq;
 
                 if(magnitude > 0.5 )
                 {
                     const float d = sqrtf(d_sq);
-                    const Float2d dir_j2i = diff_j2i/d;
+                    const Float2d dir_body2star = diff_body2star/d;
                     
-                    const Float2d force_on_j = dir_j2i*magnitude;
-                    const Float2d force_on_i = -force_on_j;
+                    const Float2d force_on_body = dir_body2star*magnitude;
+                    const Float2d force_on_star = -force_on_body;
 
-                    star->addForce( force_on_i );
-                    body_ptr_j->addForce( force_on_j );
+                    star->addForce( force_on_star );
+                    body_ptr->addForce( force_on_body );
                 }
             }
             

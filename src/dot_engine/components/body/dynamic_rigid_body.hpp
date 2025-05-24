@@ -4,15 +4,12 @@
 
 class DotDynamicRigidBody: public DotStaticRigidBody{
     protected:
-    Float2d m_speed;
     Float2d m_acceleration;
     Float2d m_acceleration_derive;
 
     public:
-    
-    virtual bool has_speed() { return true;}
-    virtual Float2d get_speed() { return m_speed; }
-    virtual void set_speed( const Float2d& value ) { m_speed = value; }
+
+    void set_speed( const Float2d& value ) { m_speed = value; }
 
     virtual void resetForce(){
         m_acceleration = Float2d(0.0, 0.0);

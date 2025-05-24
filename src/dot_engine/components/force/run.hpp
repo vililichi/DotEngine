@@ -1,12 +1,13 @@
 #include "../../interfaces.hpp"
+#include "../body/static_rigid_body.hpp"
 
 #pragma once
 
 class DotRunningForce : public DotForceInterface
 {
     private:
-    std::weak_ptr<DotBodyInterface> m_runner_ptr;
-    std::vector<std::weak_ptr<DotBodyInterface>> m_floor_ptrs;
+    std::weak_ptr<DotStaticRigidBody> m_runner_ptr;
+    std::vector<std::weak_ptr<DotStaticRigidBody>> m_floor_ptrs;
     std::vector<float> m_friction;
     float m_running_value;
     float m_distance_threshold;
@@ -24,26 +25,26 @@ class DotRunningForce : public DotForceInterface
     int8_t get_direction() const { return m_dir; }
     void set_direction(const int8_t value) {m_dir = value;}
 
-    std::weak_ptr<DotBodyInterface> get_runner() const {return m_runner_ptr;}
-    void set_runner(const std::weak_ptr<DotBodyInterface>& jumper) { m_runner_ptr = jumper;}
+    std::weak_ptr<DotStaticRigidBody> get_runner() const {return m_runner_ptr;}
+    void set_runner(const std::weak_ptr<DotStaticRigidBody>& jumper) { m_runner_ptr = jumper;}
 
-    void add_floor(const std::weak_ptr<DotBodyInterface>& floor, float friction = 1.0) { m_floor_ptrs.push_back(floor); m_friction.push_back(friction); }
+    void add_floor(const std::weak_ptr<DotStaticRigidBody>& floor, float friction = 1.0) { m_floor_ptrs.push_back(floor); m_friction.push_back(friction); }
 
     virtual void apply( [[maybe_unused]] const float delta_t ) {
         if( m_dir != 0 )
         {
-            const std::shared_ptr<DotBodyInterface> runner_ptr = m_runner_ptr.lock();
+            const std::shared_ptr<DotStaticRigidBody> runner_ptr = m_runner_ptr.lock();
 
             Float2d best_dir = Float2d(0.0, 0.0);
             bool run_found = false;
             float best_dist = m_distance_threshold;
-            std::shared_ptr<DotBodyInterface> best_wall = nullptr;
+            std::shared_ptr<DotStaticRigidBody> best_wall = nullptr;
             float best_friction = 0.0;
 
             for(size_t i_p_1 = m_floor_ptrs.size(); i_p_1 > 0; i_p_1--)
             {
                 const size_t i = i_p_1 -1;
-                const std::shared_ptr<DotBodyInterface> wall_ptr = m_floor_ptrs[i].lock();
+                const std::shared_ptr<DotStaticRigidBody> wall_ptr = m_floor_ptrs[i].lock();
                 if( !wall_ptr || wall_ptr->is_destroyed() )
                 {
                     std::swap(m_floor_ptrs[i], m_floor_ptrs.back());

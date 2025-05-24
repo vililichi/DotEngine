@@ -100,7 +100,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 0;
+    const size_t nbr_useless_particules = 10000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -214,50 +214,51 @@ int main()
 
 
     // Ajout des formes pour l'affichage
+    float display_scaling = 10.0;
     sf::CircleShape player_circle;
     player_circle.setFillColor(sf::Color(0, 255, 10));
-    player_circle.setRadius(player_ptr->get_size());
-    player_circle.setOrigin(sf::Vector2f(player_ptr->get_size(), player_ptr->get_size()));
-    player_circle.setPosition(sf::Vector2f(player_ptr->get_position().x(), -player_ptr->get_position().y()));
+    player_circle.setRadius(player_ptr->get_size()*display_scaling);
+    player_circle.setOrigin(sf::Vector2f(player_ptr->get_size()*display_scaling, player_ptr->get_size()*display_scaling));
+    player_circle.setPosition(sf::Vector2f(player_ptr->get_position().x()*display_scaling, -player_ptr->get_position().y()*display_scaling));
     
     sf::CircleShape ball_circle_1;
     ball_circle_1.setFillColor(sf::Color(255, 0, 0));
-    ball_circle_1.setRadius(ball_ptr_1->get_size());
-    ball_circle_1.setOrigin(sf::Vector2f(ball_ptr_1->get_size(), ball_ptr_1->get_size()));
-    ball_circle_1.setPosition(sf::Vector2f(ball_ptr_1->get_position().x(), -ball_ptr_1->get_position().y()));
+    ball_circle_1.setRadius(ball_ptr_1->get_size()*display_scaling);
+    ball_circle_1.setOrigin(sf::Vector2f(ball_ptr_1->get_size()*display_scaling, ball_ptr_1->get_size()*display_scaling));
+    ball_circle_1.setPosition(sf::Vector2f(ball_ptr_1->get_position().x()*display_scaling, -ball_ptr_1->get_position().y()*display_scaling));
 
     sf::CircleShape ball_circle_2;
     ball_circle_2.setFillColor(sf::Color(255, 0, 0));
-    ball_circle_2.setRadius(ball_ptr_2->get_size());
-    ball_circle_2.setOrigin(sf::Vector2f(ball_ptr_2->get_size(), ball_ptr_2->get_size()));
-    ball_circle_2.setPosition(sf::Vector2f(ball_ptr_2->get_position().x(), -ball_ptr_2->get_position().y()));
+    ball_circle_2.setRadius(ball_ptr_2->get_size()*display_scaling);
+    ball_circle_2.setOrigin(sf::Vector2f(ball_ptr_2->get_size()*display_scaling, ball_ptr_2->get_size()*display_scaling));
+    ball_circle_2.setPosition(sf::Vector2f(ball_ptr_2->get_position().x()*display_scaling, -ball_ptr_2->get_position().y()*display_scaling));
 
     sf::CircleShape ball_circle_3;
     ball_circle_3.setFillColor(sf::Color(255, 0, 0));
-    ball_circle_3.setRadius(ball_ptr_3->get_size());
-    ball_circle_3.setOrigin(sf::Vector2f(ball_ptr_3->get_size(), ball_ptr_3->get_size()));
-    ball_circle_3.setPosition(sf::Vector2f(ball_ptr_3->get_position().x(), -ball_ptr_3->get_position().y()));
+    ball_circle_3.setRadius(ball_ptr_3->get_size()*display_scaling);
+    ball_circle_3.setOrigin(sf::Vector2f(ball_ptr_3->get_size()*display_scaling, ball_ptr_3->get_size()*display_scaling));
+    ball_circle_3.setPosition(sf::Vector2f(ball_ptr_3->get_position().x()*display_scaling, -ball_ptr_3->get_position().y()*display_scaling));
 
     sf::ConvexShape ball_triangle;
     ball_triangle.setFillColor(sf::Color(255,0,0));
     ball_triangle.setPointCount(3);
-    ball_triangle.setPoint(0, sf::Vector2f(ball_ptr_1->get_position().x(), -ball_ptr_1->get_position().y()));
-    ball_triangle.setPoint(1, sf::Vector2f(ball_ptr_2->get_position().x(), -ball_ptr_2->get_position().y()));
-    ball_triangle.setPoint(2, sf::Vector2f(ball_ptr_3->get_position().x(), -ball_ptr_3->get_position().y()));
+    ball_triangle.setPoint(0, sf::Vector2f(ball_ptr_1->get_position().x()*display_scaling, -ball_ptr_1->get_position().y()*display_scaling));
+    ball_triangle.setPoint(1, sf::Vector2f(ball_ptr_2->get_position().x()*display_scaling, -ball_ptr_2->get_position().y()*display_scaling));
+    ball_triangle.setPoint(2, sf::Vector2f(ball_ptr_3->get_position().x()*display_scaling, -ball_ptr_3->get_position().y()*display_scaling));
 
     sf::CircleShape ground_circle;
     ground_circle.setPointCount(64);
     ground_circle.setFillColor(sf::Color(255, 255, 255));
-    ground_circle.setRadius(ground_ptr->get_size());
-    ground_circle.setOrigin(sf::Vector2f(ground_ptr->get_size(), ground_ptr->get_size()));
-    ground_circle.setPosition(sf::Vector2f(ground_ptr->get_position().x(), -ground_ptr->get_position().y()));
+    ground_circle.setRadius(ground_ptr->get_size()*display_scaling);
+    ground_circle.setOrigin(sf::Vector2f(ground_ptr->get_size()*display_scaling, ground_ptr->get_size()*display_scaling));
+    ground_circle.setPosition(sf::Vector2f(ground_ptr->get_position().x()*display_scaling, -ground_ptr->get_position().y()*display_scaling));
 
     sf::CircleShape ground2_circle;
     ground2_circle.setPointCount(64);
     ground2_circle.setFillColor(sf::Color(255, 255, 255));
-    ground2_circle.setRadius(ground2_ptr->get_size());
-    ground2_circle.setOrigin(sf::Vector2f(ground2_ptr->get_size(), ground2_ptr->get_size()));
-    ground2_circle.setPosition(sf::Vector2f(ground2_ptr->get_position().x(), -ground2_ptr->get_position().y()));
+    ground2_circle.setRadius(ground2_ptr->get_size()*display_scaling);
+    ground2_circle.setOrigin(sf::Vector2f(ground2_ptr->get_size()*display_scaling, ground2_ptr->get_size()*display_scaling));
+    ground2_circle.setPosition(sf::Vector2f(ground2_ptr->get_position().x()*display_scaling, -ground2_ptr->get_position().y()*display_scaling));
 
     std::thread physic_thread( physic_loop );
 
@@ -276,7 +277,7 @@ int main()
     int delta_print_itt = 0;
 
     // camera
-    sf::View view(sf::FloatRect({540.f, 360.f}, {1080, 720}));
+    sf::View view(sf::FloatRect({540.f*display_scaling, 360.f*display_scaling}, {1080*display_scaling, 720*display_scaling}));
 
     // Boucle de simulation / affichage
     while (window.isOpen())
@@ -335,22 +336,22 @@ int main()
         physic_lock.unlock();
 
         // Mise à jour des formes à afficher
-        player_circle.setRadius(player_size);
-        player_circle.setOrigin(sf::Vector2f(player_size, player_size));
-        player_circle.setPosition(sf::Vector2f(player_position.x(), -player_position.y()));
+        player_circle.setRadius(player_size*display_scaling);
+        player_circle.setOrigin(sf::Vector2f(player_size*display_scaling, player_size*display_scaling));
+        player_circle.setPosition(sf::Vector2f(player_position.x()*display_scaling, -player_position.y()*display_scaling));
 
-        ball_circle_1.setPosition(sf::Vector2f(ball_1_position.x(), -ball_1_position.y()));
-        ball_circle_2.setPosition(sf::Vector2f(ball_2_position.x(), -ball_2_position.y()));
-        ball_circle_3.setPosition(sf::Vector2f(ball_3_position.x(), -ball_3_position.y()));
+        ball_circle_1.setPosition(sf::Vector2f(ball_1_position.x()*display_scaling, -ball_1_position.y()*display_scaling));
+        ball_circle_2.setPosition(sf::Vector2f(ball_2_position.x()*display_scaling, -ball_2_position.y()*display_scaling));
+        ball_circle_3.setPosition(sf::Vector2f(ball_3_position.x()*display_scaling, -ball_3_position.y()*display_scaling));
 
-        ball_triangle.setPoint(0, sf::Vector2f(ball_1_position.x(), -ball_1_position.y()));
-        ball_triangle.setPoint(1, sf::Vector2f(ball_2_position.x(), -ball_2_position.y()));
-        ball_triangle.setPoint(2, sf::Vector2f(ball_3_position.x(), -ball_3_position.y()));
+        ball_triangle.setPoint(0, sf::Vector2f(ball_1_position.x()*display_scaling, -ball_1_position.y()*display_scaling));
+        ball_triangle.setPoint(1, sf::Vector2f(ball_2_position.x()*display_scaling, -ball_2_position.y()*display_scaling));
+        ball_triangle.setPoint(2, sf::Vector2f(ball_3_position.x()*display_scaling, -ball_3_position.y()*display_scaling));
 
         // Mouvement de la vue
         const sf::Vector2f player_pos = player_circle.getPosition();
         const sf::Vector2f view_pos = view.getCenter();
-        const float view_filter_alpha = 0.975;
+        float view_filter_alpha = 0.985;
         const float view_filter_beta = 1.0 - view_filter_alpha;
         const sf::Vector2 new_view_pos = sf::Vector2f( (view_filter_beta*player_pos.x) + (view_filter_alpha*view_pos.x), (view_filter_beta*player_pos.y) + (view_filter_alpha*view_pos.y)  );
         view.setCenter( new_view_pos );

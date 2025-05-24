@@ -1,20 +1,21 @@
 #include "../../interfaces.hpp"
+#include "../body/static_rigid_body.hpp"
 
 #pragma once
 
 class DotLinkBase : public DotForceInterface
 {
     protected:
-    std::weak_ptr<DotBodyInterface> m_target_ptr_a;
-    std::weak_ptr<DotBodyInterface> m_target_ptr_b;
+    std::weak_ptr<DotStaticRigidBody> m_target_ptr_a;
+    std::weak_ptr<DotStaticRigidBody> m_target_ptr_b;
 
     public:
 
-    std::weak_ptr<DotBodyInterface> get_target_a() const {return m_target_ptr_a;}
-    void set_target_a(const std::weak_ptr<DotBodyInterface>& target) { m_target_ptr_a = target;}
+    std::weak_ptr<DotStaticRigidBody> get_target_a() const {return m_target_ptr_a;}
+    void set_target_a(const std::weak_ptr<DotStaticRigidBody>& target) { m_target_ptr_a = target;}
 
-    std::weak_ptr<DotBodyInterface> get_target_b() const {return m_target_ptr_b;}
-    void set_target_b(const std::weak_ptr<DotBodyInterface>& target) { m_target_ptr_b = target;}
+    std::weak_ptr<DotStaticRigidBody> get_target_b() const {return m_target_ptr_b;}
+    void set_target_b(const std::weak_ptr<DotStaticRigidBody>& target) { m_target_ptr_b = target;}
 
 };
 
@@ -45,14 +46,14 @@ class DotSpringLink : public DotSpingLinkBase
 
     virtual void apply( [[maybe_unused]] const float delta_t ) {
 
-        const std::shared_ptr<DotBodyInterface> target_ptr_a = get_target_a().lock();
+        const std::shared_ptr<DotStaticRigidBody> target_ptr_a = get_target_a().lock();
         if( !target_ptr_a ) {
             destroy();
             return;
         }
 
         
-        const std::shared_ptr<DotBodyInterface> target_ptr_b = get_target_b().lock();
+        const std::shared_ptr<DotStaticRigidBody> target_ptr_b = get_target_b().lock();
         if( !target_ptr_b ) {
             destroy();
             return;
@@ -92,14 +93,14 @@ class DotRopeLink : public DotSpingLinkBase
 
     virtual void apply( [[maybe_unused]] const float delta_t ) {
 
-        std::shared_ptr<DotBodyInterface> target_ptr_a = get_target_a().lock();
+        std::shared_ptr<DotStaticRigidBody> target_ptr_a = get_target_a().lock();
         if( !target_ptr_a ) {
             destroy();
             return;
         }
 
         
-        std::shared_ptr<DotBodyInterface> target_ptr_b = get_target_b().lock();
+        std::shared_ptr<DotStaticRigidBody> target_ptr_b = get_target_b().lock();
         if( !target_ptr_b ) {
             destroy();
             return;

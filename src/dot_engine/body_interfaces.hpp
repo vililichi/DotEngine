@@ -49,7 +49,7 @@ class DotBodyInterface: public Destroyable{
     virtual void applyKinematic( [[maybe_unused]] const float deltaTime){};
 
     // Optional features
-
+    /*
     // [Optional] body speed
     virtual bool has_speed() { return false;}
     // [Optional] body speed
@@ -77,6 +77,7 @@ class DotBodyInterface: public Destroyable{
     virtual float get_damping() { return 0.0; }
     // [Optional] body damping
     virtual void set_damping( [[maybe_unused]] const float value ) { return; }
+    */
 
     // return true if 2 bodies touch
     static bool hasCollision( const std::shared_ptr<DotBodyInterface>& body_a, const std::shared_ptr<DotBodyInterface>& body_b ) {

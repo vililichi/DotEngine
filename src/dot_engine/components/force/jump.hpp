@@ -1,12 +1,13 @@
 #include "../../interfaces.hpp"
+#include "../body/static_rigid_body.hpp"
 
 #pragma once
 
 class DotJumpingForce : public DotForceInterface
 {
     private:
-    std::weak_ptr<DotBodyInterface> m_jumper_ptr;
-    std::vector<std::weak_ptr<DotBodyInterface>> m_wall_ptrs;
+    std::weak_ptr<DotStaticRigidBody> m_jumper_ptr;
+    std::vector<std::weak_ptr<DotStaticRigidBody>> m_wall_ptrs;
     Float2d m_value;
     float m_initial_value;
     float m_degradation_rate;
@@ -20,10 +21,10 @@ class DotJumpingForce : public DotForceInterface
     float get_initial_value() const { return m_initial_value; }
     void set_initial_value(const float value) {m_initial_value = value;}
 
-    std::weak_ptr<DotBodyInterface> get_jumper() const {return m_jumper_ptr;}
-    void set_jumper(const std::weak_ptr<DotBodyInterface>& jumper) { m_jumper_ptr = jumper;}
+    std::weak_ptr<DotStaticRigidBody> get_jumper() const {return m_jumper_ptr;}
+    void set_jumper(const std::weak_ptr<DotStaticRigidBody>& jumper) { m_jumper_ptr = jumper;}
 
-    void add_wall(const std::weak_ptr<DotBodyInterface>& wall) { m_wall_ptrs.push_back(wall); }
+    void add_wall(const std::weak_ptr<DotStaticRigidBody>& wall) { m_wall_ptrs.push_back(wall); }
 
     float get_degradation_rate() const {return m_degradation_rate;}
     void set_degradation_rate(const float value) { m_degradation_rate = value;}
@@ -37,7 +38,7 @@ class DotJumpingForce : public DotForceInterface
     virtual void apply( [[maybe_unused]] const float delta_t ) {
         if( m_is_active )
         {
-            const std::shared_ptr<DotBodyInterface> jumper_ptr = m_jumper_ptr.lock();
+            const std::shared_ptr<DotStaticRigidBody> jumper_ptr = m_jumper_ptr.lock();
             if( !jumper_ptr || jumper_ptr->is_destroyed() )
             {
                 destroy();
@@ -53,7 +54,7 @@ class DotJumpingForce : public DotForceInterface
                 for(size_t i_p_1 = m_wall_ptrs.size(); i_p_1 > 0; i_p_1--)
                 {
                     const size_t i = i_p_1 -1;
-                    const std::shared_ptr<DotBodyInterface> wall_ptr = m_wall_ptrs[i].lock();
+                    const std::shared_ptr<DotStaticRigidBody> wall_ptr = m_wall_ptrs[i].lock();
                     if( !wall_ptr || wall_ptr->is_destroyed() )
                     {
                         std::swap(m_wall_ptrs[i], m_wall_ptrs.back());

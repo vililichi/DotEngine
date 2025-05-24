@@ -13,12 +13,17 @@ class DotEngine {
     std::vector<std::vector<size_t>> m_collision_sort_result_buffer;
     std::vector<DotCollisionInfo>    m_collision_result_buffer;
 
+    bool m_body_list_changed;
+
     public:
+
+    DotEngine():m_body_list_changed(false){}
 
     void update(const float delta_t, const size_t division = 0);
 
     void register_body(std::shared_ptr<DotBodyInterface> body_ptr){
         m_body_ptrs.emplace_back(std::move(body_ptr));
+        m_body_list_changed = true;
     }
 
     void register_force(std::shared_ptr<DotForceInterface> force_ptr){
@@ -47,6 +52,7 @@ void DotEngine::update(const float delta_t, const size_t division)
         {
             std::swap(m_body_ptrs[i], m_body_ptrs.back());
             m_body_ptrs.pop_back();
+            m_body_list_changed = true;
         }
         else body_ptr->resetForce();
     }
@@ -87,7 +93,7 @@ void DotEngine::update(const float delta_t, const size_t division)
     const size_t nbr_force_ptrs = m_force_ptrs.size();
     const size_t nbr_collision_effect_ptrs = m_collision_effect_ptrs.size();
 
-
+    bool collision_info_changed = true;
     for(const auto& collision_sort_result: m_collision_sort_result_buffer)
     {
         const size_t body_i_id = collision_sort_result[0];
@@ -117,7 +123,7 @@ void DotEngine::update(const float delta_t, const size_t division)
         // Universal law apply
         for(const std::shared_ptr<DotUniversalLawInterface>& universal_law_ptr : m_universal_law_ptrs)
         {
-            universal_law_ptr->apply(delta_t_itt, m_body_ptrs);
+            universal_law_ptr->apply(delta_t_itt, m_body_ptrs, m_body_list_changed);
         }
 
 
@@ -130,10 +136,7 @@ void DotEngine::update(const float delta_t, const size_t division)
         // collision
         for(const std::shared_ptr<DotCollisionEffectInterface>& effet_ptr : m_collision_effect_ptrs)
         {
-            for(const DotCollisionInfo&  collision_info : m_collision_result_buffer)
-            {
-                effet_ptr->apply(delta_t_itt, collision_info);
-            }
+            effet_ptr->apply(delta_t_itt, m_collision_result_buffer, collision_info_changed);
         }
 
         // Kinematics
@@ -141,6 +144,9 @@ void DotEngine::update(const float delta_t, const size_t division)
         {
             body_ptr->applyKinematic(delta_t_itt);
         }
+
+        m_body_list_changed = false;
+        collision_info_changed = false;
     }
 
 }

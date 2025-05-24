@@ -32,7 +32,7 @@ class DotUniversalLawInterface : public Destroyable
     public:
 
     virtual ~DotUniversalLawInterface(){}
-    virtual void apply( const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs ) = 0;
+    virtual void apply( const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed ) = 0;
 };
 
 class DotForceInterface : public Destroyable
@@ -47,5 +47,5 @@ class DotCollisionEffectInterface : public Destroyable
 {
     public:
     virtual ~DotCollisionEffectInterface(){}
-    virtual void apply( const float delta_t, const DotCollisionInfo& collision_info ) = 0;
+    virtual void apply( const float delta_t, const std::vector<DotCollisionInfo>& collision_infos, const bool collision_infos_changed  ) = 0;
 };
