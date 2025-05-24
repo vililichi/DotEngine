@@ -18,7 +18,7 @@
 
 int main()
 {
-    const float dt_second = 0.01;
+    const float dt_second = 0.001;
     const uint8_t force_resolution_multiplier = 10;
     MonitoredPysicThread physic_thread(dt_second, force_resolution_multiplier);
     DotEngine& engine = physic_thread.engine();
@@ -47,13 +47,13 @@ int main()
     player_ptr->set_damping(obj_damping);
     player_ptr->set_mass(20.0);
     player_ptr->set_size(default_player_size);
-    player_ptr->set_position(Float2d(540.0, -300.0));
+    player_ptr->set_position(Float2d(540.0, -280.0));
     player_ptr->set_max_speed(max_speed);
     engine.register_body(player_ptr);
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 10000;
+    const size_t nbr_useless_particules = 1000;//10000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -72,7 +72,7 @@ int main()
     ball_ptr_1->set_damping(obj_damping);
     ball_ptr_1->set_mass(5.0);
     ball_ptr_1->set_size(10.0);
-    ball_ptr_1->set_position(Float2d(540.0, -200.0));
+    ball_ptr_1->set_position(Float2d(540.0, -350.0));
     ball_ptr_1->set_max_speed(max_speed);
     engine.register_body(ball_ptr_1);
 
@@ -81,7 +81,7 @@ int main()
     ball_ptr_2->set_damping(obj_damping);
     ball_ptr_2->set_mass(5.0);
     ball_ptr_2->set_size(10.0);
-    ball_ptr_2->set_position(Float2d(510.0, -200.0));
+    ball_ptr_2->set_position(Float2d(510.0, -350.0));
     ball_ptr_2->set_max_speed(max_speed);
     engine.register_body(ball_ptr_2);
 
@@ -90,7 +90,7 @@ int main()
     ball_ptr_3->set_damping(obj_damping);
     ball_ptr_3->set_mass(5.0);
     ball_ptr_3->set_size(10.0);
-    ball_ptr_3->set_position(Float2d(570.0, -200.0));
+    ball_ptr_3->set_position(Float2d(570.0, -350.0));
     ball_ptr_3->set_max_speed(max_speed);
     engine.register_body(ball_ptr_3);
 
@@ -127,7 +127,7 @@ int main()
     engine.register_force(player_jump_force);
 
     const float player_run_force_magnitude = 20000;
-    std::shared_ptr<DotRunningForce> player_run_force = std::make_shared<DotRunningForce>(DotRunningForce());
+    std::shared_ptr<DotIntuitiveRunningForce> player_run_force = std::make_shared<DotIntuitiveRunningForce>(DotIntuitiveRunningForce());
     player_run_force->set_runner(player_ptr);
     player_run_force->add_floor(ball_ptr_1, 3.0);
     player_run_force->add_floor(ball_ptr_2, 3.0);
@@ -138,8 +138,8 @@ int main()
     player_run_force->set_running_value(player_run_force_magnitude);
     engine.register_force(player_run_force);
 
-    const float ball_spring_hardness = 50000.0; //hard_hardness;
-    const float ball_spring_damping = 500.0; //obj_damping;
+    const float ball_spring_hardness = 10000.0; //hard_hardness;
+    const float ball_spring_damping = 100.0; //obj_damping;
     const float ball_spring_length = 30.0;
     std::shared_ptr<DotSpringLink> spring_1_2 = std::make_shared<DotSpringLink>(DotSpringLink());
     spring_1_2->set_hardness(ball_spring_hardness);
@@ -301,7 +301,7 @@ int main()
         // Mouvement de la vue
         const sf::Vector2f player_pos = player_circle.getPosition();
         const sf::Vector2f view_pos = view.getCenter();
-        float view_filter_alpha = 0.985;
+        float view_filter_alpha = 0.97;
         const float view_filter_beta = 1.0 - view_filter_alpha;
         const sf::Vector2 new_view_pos = sf::Vector2f( (view_filter_beta*player_pos.x) + (view_filter_alpha*view_pos.x), (view_filter_beta*player_pos.y) + (view_filter_alpha*view_pos.y)  );
         view.setCenter( new_view_pos );
