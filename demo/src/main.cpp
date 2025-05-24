@@ -1,5 +1,5 @@
 #include <SFML/Graphics.hpp>
-#include "../../src/dot_engine/engine.hpp"
+#include "../../src/dot_engine/physic_thread.hpp"
 #include "../../src/dot_engine/components/body/limited_dynamic_rigid_body.hpp"
 #include "../../src/dot_engine/components/body/static_rigid_body.hpp"
 #include "../../src/dot_engine/components/universal_law/gravity.hpp"
@@ -16,60 +16,13 @@
 #include <mutex>
 #include <random>
 
-DotEngine engine;
-bool end = false;
-std::mutex physic_lock;
-
-float delta_t_sum;
-float delta_t_phys_sum;
-int delta_t_nbr;
-
-void physic_loop()
-{
-
-    const std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(10000);
-    std::chrono::microseconds physic_time = std::chrono::microseconds(0);
-    float physic_delta_t = float(physic_delta_t_micro.count())/1000000.0;
-    std::cout << "physic_dt = " << physic_delta_t << std::endl;
-
-    const std::chrono::duration physic_time_0 = std::chrono::system_clock::now().time_since_epoch();
-
-    while(!end)
-    {
-        const std::chrono::duration start_time = std::chrono::system_clock::now().time_since_epoch();
-
-        // Update de la physique
-        physic_lock.lock();
-        engine.update(physic_delta_t, 10);
-        physic_lock.unlock();
-        const std::chrono::duration post_physic_time = std::chrono::system_clock::now().time_since_epoch();
-        
-        // Sleep if we are too fast
-        physic_time += physic_delta_t_micro;
-        if( physic_time.count() > std::chrono::duration_cast<std::chrono::microseconds>(post_physic_time-physic_time_0).count())
-        {
-            std::this_thread::sleep_for(physic_delta_t_micro);
-        }
-        std::chrono::duration end_time = std::chrono::system_clock::now().time_since_epoch();
-
-        // Monitor dt
-        std::chrono::microseconds delta_t_micro = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-        const std::chrono::microseconds physic_compute_time = std::chrono::duration_cast<std::chrono::microseconds>(post_physic_time - start_time);
-
-        const float delta_t = float(delta_t_micro.count());
-        const float delta_t_phys = float(physic_compute_time.count());
-
-        physic_lock.lock();
-        delta_t_nbr += 1;
-        delta_t_sum+= delta_t;
-        delta_t_phys_sum += delta_t_phys;
-        physic_lock.unlock();
-
-    }
-}
-
 int main()
 {
+    const float dt_second = 0.01;
+    const uint8_t force_resolution_multiplier = 10;
+    MonitoredPysicThread physic_thread(dt_second, force_resolution_multiplier);
+    DotEngine& engine = physic_thread.engine();
+
     auto window = sf::RenderWindow(sf::VideoMode({1080, 720}), "CMake SFML Project");
     window.setFramerateLimit(60);
 
@@ -260,7 +213,7 @@ int main()
     ground2_circle.setOrigin(sf::Vector2f(ground2_ptr->get_size()*display_scaling, ground2_ptr->get_size()*display_scaling));
     ground2_circle.setPosition(sf::Vector2f(ground2_ptr->get_position().x()*display_scaling, -ground2_ptr->get_position().y()*display_scaling));
 
-    std::thread physic_thread( physic_loop );
+    physic_thread.start();
 
     // values to get
     float player_size = player_ptr->get_size();
@@ -306,7 +259,7 @@ int main()
         }
 
         // Communication avec le moteur physique
-        physic_lock.lock();
+        physic_thread.lock();
         // values to set
         player_jump_force->set_is_active(player_jump);
         player_run_force->set_direction(set_player_run_dir);
@@ -321,11 +274,8 @@ int main()
         // print dt
         if(delta_print_itt >= 60)
         {
-            std::cout << "Mean Physic Loop Time \t\t= " << (delta_t_sum/float(delta_t_nbr)) << "us" << std::endl;
-            std::cout << "Mean Physic Computation Time \t= " << (delta_t_phys_sum/float(delta_t_nbr)) << "us" << std::endl;
-            delta_t_nbr = 0;
-            delta_t_sum = 0.0;
-            delta_t_phys_sum = 0.0;
+            std::cout << "Mean Physic Loop Time \t\t= " << physic_thread.get_loop_time_second_mean()*1000.0 << "ms" << std::endl;
+            std::cout << "Mean Physic Computation Time \t= " << physic_thread.get_physic_compute_time_second_mean()*1000.0 << "ms" << std::endl;
             delta_print_itt = 0;
         }
         else
@@ -333,7 +283,7 @@ int main()
             delta_print_itt += 1;
         }
 
-        physic_lock.unlock();
+        physic_thread.unlock();
 
         // Mise à jour des formes à afficher
         player_circle.setRadius(player_size*display_scaling);
@@ -369,8 +319,5 @@ int main()
         window.display();
     }
 
-    physic_lock.lock();
-    end = true;
-    physic_lock.unlock();
-    if( physic_thread.joinable()) physic_thread.join();
+    physic_thread.stop();
 }
