@@ -69,14 +69,16 @@ class DotSpringLink : public DotSpingLinkBase
         const float delta_dist_deriv = -dist_deriv;
 
         const float magnitude = -delta_dist * m_k;
-        const float magnitude_deriv = -delta_dist_deriv * m_k;
+        const float magnitude_deriv = ((magnitude*delta_t) - delta_dist_deriv) * m_k;
         const float magnitude_damping = -delta_dist_deriv * m_b;
 
         const Float2d force_on_a = dir_a2b * (magnitude+magnitude_damping);
         const Float2d force_on_b = -force_on_a;
         
-        const Float2d force_on_a_deriv = dir_a2b * magnitude_deriv;
+        const Float2d force_on_a_deriv = (dir_a2b * magnitude_deriv);
         const Float2d force_on_b_deriv = -force_on_a_deriv;
+
+        
         
         
         target_ptr_a->addForce(force_on_a, force_on_a_deriv);

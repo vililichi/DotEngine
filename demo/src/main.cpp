@@ -26,40 +26,37 @@ int delta_t_nbr;
 void physic_loop()
 {
 
-    std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(10000);
+    const std::chrono::microseconds physic_delta_t_micro = std::chrono::microseconds(10000);
+    std::chrono::microseconds physic_time = std::chrono::microseconds(0);
     float physic_delta_t = float(physic_delta_t_micro.count())/1000000.0;
     std::cout << "physic_dt = " << physic_delta_t << std::endl;
 
+    const std::chrono::duration physic_time_0 = std::chrono::system_clock::now().time_since_epoch();
+
     while(!end)
     {
-
         const std::chrono::duration start_time = std::chrono::system_clock::now().time_since_epoch();
 
         // Update de la physique
-        
         physic_lock.lock();
-        engine.update(physic_delta_t);
+        engine.update(physic_delta_t, 10);
         physic_lock.unlock();
         const std::chrono::duration post_physic_time = std::chrono::system_clock::now().time_since_epoch();
-
-        // Sleep until the end of dt
-        const std::chrono::microseconds physic_time = std::chrono::duration_cast<std::chrono::microseconds>(post_physic_time - start_time);
-        if( physic_time.count() < physic_delta_t_micro.count() )
-        {   
-            while(true)
-            {
-                const std::chrono::duration now = std::chrono::system_clock::now().time_since_epoch();
-                const std::chrono::microseconds time_since_start = std::chrono::duration_cast<std::chrono::microseconds>(now - start_time);
-                if( time_since_start.count() >= physic_delta_t_micro.count()) break;
-            }
+        
+        // Sleep if we are too fast
+        physic_time += physic_delta_t_micro;
+        if( physic_time.count() > std::chrono::duration_cast<std::chrono::microseconds>(post_physic_time-physic_time_0).count())
+        {
+            std::this_thread::sleep_for(physic_delta_t_micro);
         }
         std::chrono::duration end_time = std::chrono::system_clock::now().time_since_epoch();
 
         // Monitor dt
         std::chrono::microseconds delta_t_micro = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+        const std::chrono::microseconds physic_compute_time = std::chrono::duration_cast<std::chrono::microseconds>(post_physic_time - start_time);
 
         const float delta_t = float(delta_t_micro.count());
-        const float delta_t_phys = float(physic_time.count());
+        const float delta_t_phys = float(physic_compute_time.count());
 
         physic_lock.lock();
         delta_t_nbr += 1;
@@ -102,7 +99,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 50000;
+    const size_t nbr_useless_particules = 10000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -112,7 +109,8 @@ int main()
         truc_ptr->set_size(1.0);
         truc_ptr->set_position(Float2d(dist(gen), -dist(gen)));
         truc_ptr->set_max_speed(max_speed);
-        engine.register_body(truc_ptr);
+        truc_ptr->set_weak_collision(true);
+        engine.register_body(std::move(truc_ptr));
     }
 
     std::shared_ptr<DotLimitedDynamicRigidBody> ball_ptr_1 = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -149,6 +147,7 @@ int main()
     ground_ptr->set_mass(1000000.0);
     ground_ptr->set_size(1000.0);
     ground_ptr->set_position(Float2d(480.0, -1500));
+    ground_ptr->set_weak_collision(true);
     engine.register_body(ground_ptr);
     gravity_law->register_star(ground_ptr);
 
@@ -167,8 +166,8 @@ int main()
     player_jump_force->set_initial_value(player_jmp_force);
     engine.register_force(player_jump_force);
 
-    const float ball_spring_hardness = 5000.0; //hard_hardness;
-    const float ball_spring_damping = 100.0; //obj_damping;
+    const float ball_spring_hardness = 50000.0; //hard_hardness;
+    const float ball_spring_damping = 500.0; //obj_damping;
     const float ball_spring_length = 30.0;
     std::shared_ptr<DotSpringLink> spring_1_2 = std::make_shared<DotSpringLink>(DotSpringLink());
     spring_1_2->set_hardness(ball_spring_hardness);

@@ -4,6 +4,28 @@
 
 #pragma once
 
+struct DotCollisionInfo
+{
+    DotBodyInterface* const body_a;
+    DotBodyInterface* const body_b;
+
+    DotCollisionInfo():
+    body_a(nullptr),
+    body_b(nullptr)
+    {}
+
+    DotCollisionInfo(const std::shared_ptr<DotBodyInterface>& _body_a, const std::shared_ptr<DotBodyInterface>& _body_b):
+    body_a(_body_a.get()), 
+    body_b(_body_b.get())
+    {}
+
+    DotCollisionInfo(DotBodyInterface* const _body_a, DotBodyInterface* const _body_b):
+    body_a(_body_a),
+    body_b(_body_b)
+    {}
+
+};
+
 class DotUniversalLawInterface : public Destroyable
 {
 

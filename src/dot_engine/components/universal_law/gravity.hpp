@@ -105,7 +105,8 @@ class DotUniversalLawAstralGravity : public DotUniversalLawInterface
 
             const float g_mult_m = star->get_mass() * m_g;
 
-            for(size_t j = 0; j < body_ptrs.size(); j++)
+            const size_t nbr_body = body_ptrs.size();
+            for(size_t j = 0; j < nbr_body; j++)
             {
                 const std::shared_ptr<DotBodyInterface>& body_ptr_j = body_ptrs[j];
                 if( ! body_ptr_j->has_mass()) continue;

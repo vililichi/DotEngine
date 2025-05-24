@@ -21,52 +21,48 @@ class Float2d
     float norm2()const{return (m_data[0]*m_data[0]) + (m_data[1]*m_data[1]);}
     float norm()const{return sqrtf(norm2());}
 
-    Float2d& operator+=(const Float2d& v)
+    void operator+=(const Float2d& v)
     {
-        x() += v.x();
-        y() += v.y();
-        return *this;
+        m_data[0] += v.m_data[0];
+        m_data[1] += v.m_data[1];
     }
 
-    Float2d& operator-=(const Float2d& v)
+    void operator-=(const Float2d& v)
     {
-        x() -= v.x();
-        y() -= v.y();
-        return *this;
+        m_data[0] -= v.m_data[0];
+        m_data[1] -= v.m_data[1];
     }
 
-    Float2d& operator*=(const float& k)
+    void operator*=(const float& k)
     {
-        x() *= k;
-        y() *= k;
-        return *this;
+        m_data[0] *= k;
+        m_data[1] *= k;
     }
 
-    Float2d& operator/=(const float& k)
+    void operator/=(const float& k)
     {
-        x() /= k;
-        y() /= k;
-        return *this;
+        m_data[0] /= k;
+        m_data[1] /= k;
     }
 
     friend Float2d operator+(const Float2d& u, const Float2d& v)
     {
-        return Float2d(u.x()+v.x(), u.y()+v.y());
+        return Float2d(u.m_data[0]+v.m_data[0], u.m_data[1]+v.m_data[1]);
     }
 
     friend Float2d operator-(const Float2d& u, const Float2d& v)
     {
-        return Float2d(u.x()-v.x(), u.y()-v.y());
+        return Float2d(u.m_data[0]-v.m_data[0], u.m_data[1]-v.m_data[1]);
     }
 
     friend Float2d operator-(const Float2d& u)
     {
-        return Float2d(-u.x(), -u.y());
+        return Float2d(-u.m_data[0], -u.m_data[1]);
     }
 
     friend Float2d operator*(const Float2d& u, const float& k)
     {
-        return Float2d(u.x()*k, u.y()*k);
+        return Float2d(u.m_data[0]*k, u.m_data[1]*k);
     }
 
     friend Float2d operator*(const float& k, const Float2d& u)
@@ -76,7 +72,7 @@ class Float2d
 
     friend Float2d operator/(const Float2d& u, const float& k)
     {
-        return Float2d(u.x()/k, u.y()/k);
+        return Float2d(u.m_data[0]/k, u.m_data[1]/k);
     }
 
     Float2d normalised()const{
@@ -91,7 +87,7 @@ class Float2d
 
     static float dot_product(const Float2d& u, const Float2d& v)
     {
-        return (u.x()*v.x()) + (u.y()*v.y());
+        return (u.m_data[0]*v.m_data[0]) + (u.m_data[1]*v.m_data[1]);
     }
 };
 

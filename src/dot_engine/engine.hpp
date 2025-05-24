@@ -1,7 +1,6 @@
 #include "./interfaces.hpp"
 #include "./collision_sorter.hpp"
 #include <iostream>
-#include <omp.h>
 #pragma once
 
 class DotEngine {
@@ -12,30 +11,31 @@ class DotEngine {
     std::vector<std::shared_ptr<DotCollisionEffectInterface>> m_collision_effect_ptrs;
 
     std::vector<std::vector<size_t>> m_collision_sort_result_buffer;
+    std::vector<DotCollisionInfo>    m_collision_result_buffer;
 
     public:
 
-    void update(const float delta_t);
+    void update(const float delta_t, const size_t division = 0);
 
     void register_body(std::shared_ptr<DotBodyInterface> body_ptr){
-        m_body_ptrs.push_back(body_ptr);
+        m_body_ptrs.emplace_back(std::move(body_ptr));
     }
 
     void register_force(std::shared_ptr<DotForceInterface> force_ptr){
-        m_force_ptrs.push_back(force_ptr);
+        m_force_ptrs.emplace_back(std::move(force_ptr));
     }
 
     void register_universal_law(std::shared_ptr<DotUniversalLawInterface> law_ptr){
-        m_universal_law_ptrs.push_back(law_ptr);
+        m_universal_law_ptrs.emplace_back(std::move(law_ptr));
     }
 
     void register_collision_effect(std::shared_ptr<DotCollisionEffectInterface> effect_ptr){
-        m_collision_effect_ptrs.push_back(effect_ptr);
+        m_collision_effect_ptrs.emplace_back(std::move(effect_ptr));
     }
 
 };
 
-void DotEngine::update(const float delta_t)
+void DotEngine::update(const float delta_t, const size_t division)
 {
 
     // Body cleaning and reset
@@ -51,7 +51,7 @@ void DotEngine::update(const float delta_t)
         else body_ptr->resetForce();
     }
 
-    // Universal law cleaning and apply
+    // Universal law cleaning
     for(size_t i_p_1 = m_universal_law_ptrs.size(); i_p_1 > 0; i_p_1--)
     {
         const size_t i = i_p_1  - 1;
@@ -61,11 +61,9 @@ void DotEngine::update(const float delta_t)
             std::swap(m_universal_law_ptrs[i], m_universal_law_ptrs.back());
             m_universal_law_ptrs.pop_back();
         }
-        else universal_law_ptr->apply(delta_t, m_body_ptrs);
     }
 
-
-    // Forces cleaning and apply
+    // Forces cleaning
     for(size_t i_p_1 = m_force_ptrs.size(); i_p_1 > 0; i_p_1--)
     {
         const size_t i = i_p_1  - 1;
@@ -75,39 +73,74 @@ void DotEngine::update(const float delta_t)
             std::swap(m_force_ptrs[i], m_force_ptrs.back());
             m_force_ptrs.pop_back();
         }
-        else force_ptr->apply(delta_t);
     }
-
-    // Collision calculation
+    
+    // Collision precalculation
     generate_collision_pool(m_body_ptrs, m_collision_sort_result_buffer);
-    #pragma omp parallel for num_threads(4)
-    for(size_t i = 0; i < m_collision_sort_result_buffer.size(); i++)
+    m_collision_result_buffer.clear();
+
+    // Physic application loop
+    const float delta_t_itt = delta_t/division;
+    const size_t nbr_collision_sort_result = m_collision_sort_result_buffer.size();
+    const size_t nbr_body_ptrs = m_body_ptrs.size();
+    const size_t nbr_universal_law_ptrs = m_universal_law_ptrs.size();
+    const size_t nbr_force_ptrs = m_force_ptrs.size();
+    const size_t nbr_collision_effect_ptrs = m_collision_effect_ptrs.size();
+
+
+    for(const auto& collision_sort_result: m_collision_sort_result_buffer)
     {
-        const size_t body_i_id = m_collision_sort_result_buffer[i][0];
-        std::shared_ptr<DotBodyInterface> body_ptr_i = m_body_ptrs[body_i_id];
-        for(size_t j = 1; j < m_collision_sort_result_buffer[i].size(); j++)
+        const size_t body_i_id = collision_sort_result[0];
+        const std::shared_ptr<DotBodyInterface>& body_ptr_i = m_body_ptrs[body_i_id];
+
+        const size_t nbr_m_collision_sort_result_buffer_sub_result = collision_sort_result.size();
+        for(size_t j = 1; j < nbr_m_collision_sort_result_buffer_sub_result; j++)
         {
-            const size_t body_j_id = m_collision_sort_result_buffer[i][j];
+            const size_t body_j_id = collision_sort_result[j];
             const std::shared_ptr<DotBodyInterface>& body_ptr_j = m_body_ptrs[body_j_id];
-            DotCollisionInfo info = DotBodyInterface::detectCollision(body_ptr_i, body_ptr_j);
-            if( info.has_collision )
+            if( DotBodyInterface::hasCollision(body_ptr_i, body_ptr_j) )
             {
-                #pragma omp critical
-                {
-                    for(size_t k = 0; k < m_collision_effect_ptrs.size() ; k++)
-                    {
-                        const std::shared_ptr<DotCollisionEffectInterface>& effet_ptr = m_collision_effect_ptrs[k];
-                        effet_ptr->apply(delta_t, info);
-                    }
-                }
+                m_collision_result_buffer.emplace_back(body_ptr_i.get(), body_ptr_j.get());
             }
         }
     }
 
-    // Kinematics
-    for(size_t i = 0; i < m_body_ptrs.size(); i++)
+    for(size_t itt = 0 ; itt < division; itt++)
     {
-        std::shared_ptr<DotBodyInterface> body_ptr = m_body_ptrs[i];
-        body_ptr->applyKinematic(delta_t);
+
+        // Body reset
+        for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
+        {
+            body_ptr->resetForce();
+        }
+
+        // Universal law apply
+        for(const std::shared_ptr<DotUniversalLawInterface>& universal_law_ptr : m_universal_law_ptrs)
+        {
+            universal_law_ptr->apply(delta_t_itt, m_body_ptrs);
+        }
+
+
+        // Forces apply
+        for(const std::shared_ptr<DotForceInterface>& force_ptr : m_force_ptrs)
+        {
+            force_ptr->apply(delta_t_itt);
+        }
+
+        // collision
+        for(const std::shared_ptr<DotCollisionEffectInterface>& effet_ptr : m_collision_effect_ptrs)
+        {
+            for(const DotCollisionInfo&  collision_info : m_collision_result_buffer)
+            {
+                effet_ptr->apply(delta_t_itt, collision_info);
+            }
+        }
+
+        // Kinematics
+        for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
+        {
+            body_ptr->applyKinematic(delta_t_itt);
+        }
     }
+
 }

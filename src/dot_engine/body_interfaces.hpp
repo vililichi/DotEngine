@@ -3,71 +3,85 @@
 
 #pragma once
 
-class DotBodyInterface;
-
-struct DotCollisionInfo
-{
-    bool has_collision;
-    const std::shared_ptr<DotBodyInterface>& body_a;
-    const std::shared_ptr<DotBodyInterface>& body_b;
-    Float2d collision_point;
-
-    Float2d a_constraint ;
-    Float2d b_constraint ;
-    
-    Float2d a_constraint_deriv ;
-    Float2d b_constraint_deriv ;
-
-    DotCollisionInfo(const std::shared_ptr<DotBodyInterface>& _body_a, const std::shared_ptr<DotBodyInterface>& _body_b):
-    has_collision(false), 
-    body_a(_body_a), 
-    body_b(_body_b)
-    {}
-
-};
-
 class DotBodyInterface: public Destroyable{
     protected:
 
+    // Body position
     Float2d m_position;
+
+    // Body size
     float m_size;
+
+    // Body with weak collision cannot have collision with other body with weak collision
+    bool m_weak_collision;
 
     public:
 
+    // Body size
     void  set_size(const float value) {m_size = value; }
+    // Body size
     float get_size() const {return m_size;}
 
+    // Body position
     void     set_position(const Float2d& value) {m_position = value;}
+    // Body position
     Float2d  get_position() const {return m_position;}
+
+    // Body with weak collision cannot have collision with other body with weak collision
+    bool has_weak_collision(){ return m_weak_collision; }
+    // Body with weak collision cannot have collision with other body with weak collision
+    void set_weak_collision(const bool value ){  m_weak_collision = value; }
 
     // Function to overload
     virtual ~DotBodyInterface(){}
+    DotBodyInterface():
+    m_position(Float2d(0,0)),
+    m_size(0),
+    m_weak_collision(false)
+    {}
 
+    // Reset all forces applied
     virtual void resetForce(){};
+    // Apply a force
     virtual void addForce( [[maybe_unused]] const Float2d& force, [[maybe_unused]] const Float2d& force_derivation = Float2d(0.f, 0.f)){};
 
+    // Change body position based on forces applied
     virtual void applyKinematic( [[maybe_unused]] const float deltaTime){};
 
     // Optional features
+
+    // [Optional] body speed
     virtual bool has_speed() { return false;}
+    // [Optional] body speed
     virtual Float2d get_speed() { return Float2d(); }
+    // [Optional] body speed
     virtual void set_speed( [[maybe_unused]] const Float2d& value ) { return; }
 
+    // [Optional] body mass
     virtual bool has_mass() { return false;}
+    // [Optional] body mass
     virtual float get_mass() { return 1.0; }
+    // [Optional] body mass
     virtual void set_mass( [[maybe_unused]] const float value ) { return; }
 
+    // [Optional] body hardness
     virtual bool has_hardness() { return false;}
+    // [Optional] body hardness
     virtual float get_hardness() { return 0.0; }
+    // [Optional] body hardness
     virtual void set_hardness( [[maybe_unused]] const float value ) { return; }
 
+    // [Optional] body damping
     virtual bool has_damping() { return false;}
+    // [Optional] body damping
     virtual float get_damping() { return 0.0; }
+    // [Optional] body damping
     virtual void set_damping( [[maybe_unused]] const float value ) { return; }
 
-    static DotCollisionInfo detectCollision( const std::shared_ptr<DotBodyInterface>& body_a, const std::shared_ptr<DotBodyInterface>& body_b ) {
+    // return true if 2 bodies touch
+    static bool hasCollision( const std::shared_ptr<DotBodyInterface>& body_a, const std::shared_ptr<DotBodyInterface>& body_b ) {
 
-        DotCollisionInfo out(body_a, body_b);
+        if( body_a->has_weak_collision() && body_b->has_weak_collision() ) return false;
 
         const float size_a = body_a->get_size();
         const float size_b = body_b->get_size();
@@ -80,31 +94,6 @@ class DotBodyInterface: public Destroyable{
         const float critical_dist = size_a + size_b;
         const float critical_dist_sq = critical_dist * critical_dist;
 
-        if( dist_sq < critical_dist_sq)
-        {
-
-            const Float2d speed_a = body_a->get_speed();
-            const Float2d speed_b = body_b->get_speed();
-            
-            const Float2d diff_deriv_a2b = speed_b - speed_a;
-
-            const float dist = sqrt(dist_sq);
-            const Float2d dir_a2b = diff_a2b/dist;
-            const float dist_deriv = Float2d::dot_product(diff_deriv_a2b, dir_a2b);
-
-            const float delta_dist = critical_dist - dist ;
-            const float delta_dist_deriv = -dist_deriv;
-
-            const Float2d point = pos_a + (diff_a2b * (size_a/(critical_dist)));
-
-            out.has_collision = true;
-            out.a_constraint = dir_a2b * delta_dist;
-            out.b_constraint = -out.a_constraint;
-            out.a_constraint_deriv = dir_a2b * delta_dist_deriv;
-            out.b_constraint_deriv = -out.a_constraint_deriv;
-            out.collision_point = point;
-        }
-        
-        return out;
+        return dist_sq < critical_dist_sq;
     }
 };
