@@ -1,4 +1,5 @@
 #include "../../system_interface.hpp"
+#include "../../physic_multithread_helper.hpp"
 #include "../body/dynamic_rigid_body.hpp"
 #include "../body/static_rigid_body.hpp"
 
@@ -85,34 +86,38 @@ class DotUniversalLawAstralGravity : public DotSystemInterface
         }
     }
 
-    void apply( [[maybe_unused]] const float delta_t ) {
-
+    void apply_one(float dt, size_t i)
+    {
+        DotDynamicRigidBody* const body_ptr = m_body_buffer[i];
         for(const std::shared_ptr<DotStaticRigidBody>& star : m_stars)
         {
             // apply gravity
             const float g_mult_m = star->get_mass() * m_g;
             const Float2d star_position = star->get_position();
 
-            for(DotDynamicRigidBody* const body_ptr : m_body_buffer )
+            const Float2d diff_body2star = star_position - body_ptr->get_position();
+            const float m_body = body_ptr->get_mass();
+            const float d_sq = diff_body2star.norm2() + 0.01;
+            const float magnitude = (g_mult_m * m_body)/d_sq;
+
+            if(magnitude > 0.5 )
             {
-                const Float2d diff_body2star = star_position - body_ptr->get_position();
-                const float m_body = body_ptr->get_mass();
-                const float d_sq = diff_body2star.norm2() + 0.01;
-                const float magnitude = (g_mult_m * m_body)/d_sq;
+                const float d = sqrtf(d_sq);
+                const Float2d dir_body2star = diff_body2star/d;
+                
+                const Float2d force_on_body = dir_body2star*magnitude;
+                const Float2d force_on_star = -force_on_body;
 
-                if(magnitude > 0.5 )
-                {
-                    const float d = sqrtf(d_sq);
-                    const Float2d dir_body2star = diff_body2star/d;
-                    
-                    const Float2d force_on_body = dir_body2star*magnitude;
-                    const Float2d force_on_star = -force_on_body;
-
-                    star->addForce( force_on_star );
-                    body_ptr->addForce( force_on_body );
-                }
+                body_ptr->addForce( force_on_body );
             }
-            
         }
+    }
+
+    void apply( [[maybe_unused]] const float delta_t ) {
+
+        static const std::function<void(float, size_t)> custom_fct = std::bind(&DotUniversalLawAstralGravity::apply_one, this, std::placeholders::_1, std::placeholders::_2);
+        m_multi_thread_helper_ptr->custom_function(delta_t, m_body_buffer.size(), &custom_fct);
+        return;
+
     }
 };

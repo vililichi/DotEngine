@@ -37,6 +37,7 @@ class DotEngine {
 
     void register_system(std::shared_ptr<DotSystemInterface> system_ptr, bool is_high_resolution = false){
         system_ptr->on_body_list_update(m_body_ptrs);   
+        system_ptr->set_multi_thread_helper_ptr(&m_multi_thread_helper);
         if( is_high_resolution) m_high_resolution_system_ptrs.emplace_back(std::move(system_ptr));
         else m_low_resolution_system_ptrs.emplace_back(std::move(system_ptr));
     }

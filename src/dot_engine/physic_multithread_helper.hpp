@@ -1,14 +1,14 @@
 #include "./system_interface.hpp"
 #include <thread>
 #include <atomic>
-#include <queue>
-#include <condition_variable>
 #include <mutex>
+#include <functional>
 #pragma once
 
 enum DotThreadTaskId {
     NONE,
     KILL,
+    CUSTOM,
     BODY_ON_HIGH_RESOLUTION_LOOP_END,
     BODY_ON_HIGH_RESOLUTION_LOOP_START,
     BODY_HAS_COLLISION
@@ -38,6 +38,7 @@ class DotPhysicMultithreadHelper
     std::vector<std::vector<size_t>>& m_collision_sort_result_buffer_ref;
     std::vector<std::vector<DotCollisionInfo>> m_collision_result_buffer_unfused;
     std::vector<DotCollisionInfo>&    m_collision_result_buffer_ref;
+    const std::function<void(float, size_t)>*  m_custom_function_ptr;
     
 
     const uint8_t m_nbr_thread;
@@ -45,6 +46,7 @@ class DotPhysicMultithreadHelper
     void worker_loop(const size_t thread_id);
     void task_BODY_ON_HIGH_RESOLUTION_LOOP_START(const DotThreadTask& task);
     void task_BODY_ON_HIGH_RESOLUTION_LOOP_END(const DotThreadTask& task);
+    void task_CUSTOM(const DotThreadTask& task);
     void task_BODY_HAS_COLLISION(const DotThreadTask& task, const uint8_t thread_id);
 
     public:
@@ -174,6 +176,12 @@ class DotPhysicMultithreadHelper
 
     }
 
+    void custom_function(const float dt, const size_t size, const std::function<void(float, size_t)>*  custom_function_ptr)
+    {
+        m_custom_function_ptr = custom_function_ptr;
+        populate_task_and_wait(dt, size, DotThreadTaskId::CUSTOM);
+    }
+
     void body_on_high_resolution_loop_start(const float dt)
     {
         populate_task_and_wait(dt, m_body_ptrs_ref.size(), DotThreadTaskId::BODY_ON_HIGH_RESOLUTION_LOOP_START);
@@ -237,6 +245,15 @@ void DotPhysicMultithreadHelper::task_BODY_HAS_COLLISION(const DotThreadTask& ta
     }
 }
 
+void DotPhysicMultithreadHelper::task_CUSTOM(const DotThreadTask& task)
+{
+    const size_t end_excluded = task.id_size+task.id_start;
+    for(size_t i = task.id_start; i < end_excluded; i++)
+    {
+        m_custom_function_ptr->operator()(task.dt, i);
+    }
+}
+
 void DotPhysicMultithreadHelper::worker_loop(const size_t thread_id)
 {
     std::atomic_flag& execute_task_flag = *m_threads_excute_task_flag[thread_id];
@@ -250,8 +267,13 @@ void DotPhysicMultithreadHelper::worker_loop(const size_t thread_id)
         switch(task.task_id) {
         case NONE:
             break;
+
         case KILL:
             continue_loop = false;
+            break;
+
+        case CUSTOM:
+            task_CUSTOM(task);
             break;
 
         case BODY_ON_HIGH_RESOLUTION_LOOP_START:

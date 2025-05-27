@@ -26,9 +26,14 @@ struct DotCollisionInfo
 
 };
 
+class DotPhysicMultithreadHelper;
 class DotSystemInterface : public Destroyable
 {
+    protected:
+    DotPhysicMultithreadHelper* m_multi_thread_helper_ptr;
+
     public:
+    void set_multi_thread_helper_ptr(DotPhysicMultithreadHelper*const multi_thread_helper_ptr){m_multi_thread_helper_ptr = multi_thread_helper_ptr;}
     virtual ~DotSystemInterface(){}
     virtual void apply( [[maybe_unused]] const float delta_t) = 0;
     virtual void on_body_list_update([[maybe_unused]] const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs){};
