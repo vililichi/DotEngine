@@ -1,4 +1,4 @@
-#include "../../interfaces.hpp"
+#include "../../system_interface.hpp"
 #include "../body/dynamic_rigid_body.hpp"
 
 #pragma once

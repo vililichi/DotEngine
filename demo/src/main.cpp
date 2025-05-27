@@ -14,7 +14,7 @@
 
 int main()
 {
-    const float dt_second = 0.001;
+    const float dt_second = 0.01;
     const uint8_t force_resolution_multiplier = 10;
     MonitoredPysicThread physic_thread(dt_second, force_resolution_multiplier);
     DotEngine& engine = physic_thread.engine();
@@ -49,7 +49,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 1000;
+    const size_t nbr_useless_particules = 10000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());

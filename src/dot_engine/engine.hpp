@@ -1,6 +1,6 @@
-#include "./interfaces.hpp"
+#include "./system_interface.hpp"
 #include "./collision_sorter.hpp"
-#include <iostream>
+#include "./physic_multithread_helper.hpp"
 #pragma once
 
 class DotEngine {
@@ -13,11 +13,25 @@ class DotEngine {
     std::vector<std::vector<size_t>> m_collision_sort_result_buffer;
     std::vector<DotCollisionInfo>    m_collision_result_buffer;
 
+    DotPhysicMultithreadHelper m_multi_thread_helper;
+
     bool m_body_list_changed;
 
     public:
 
-    DotEngine():m_body_list_changed(false){}
+    DotEngine():
+    m_body_list_changed(false),
+    m_multi_thread_helper(
+        m_body_ptrs,
+        m_low_resolution_system_ptrs,
+        m_high_resolution_system_ptrs,
+        m_collision_sort_result_buffer,
+        m_collision_result_buffer,
+        8
+    )
+    {
+
+    }
 
     void update(const float delta_t, const size_t division = 0);
 
@@ -44,6 +58,8 @@ class DotEngine {
 
 void DotEngine::update(const float delta_t, const size_t high_resolution_multiplier)
 {
+    // Awake threads from multithread helper
+    m_multi_thread_helper.awake();
 
     // Body cleaning and on_low_resolution_loop_start
     for(size_t i_p_1 = m_body_ptrs.size(); i_p_1 > 0; i_p_1--)
@@ -143,10 +159,11 @@ void DotEngine::update(const float delta_t, const size_t high_resolution_multipl
     {
 
         // Body on_high_resolution_loop_start
-        for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
-        {
-            body_ptr->on_high_resolution_loop_start(delta_t_high_resolution);
-        }
+        //for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
+        //{
+        //    body_ptr->on_high_resolution_loop_start(delta_t_high_resolution);
+        //}
+        m_multi_thread_helper.body_on_high_resolution_loop_start(delta_t_high_resolution);
 
         // high resolutionsystem apply
         for(const std::shared_ptr<DotSystemInterface>& system_ptr : m_high_resolution_system_ptrs)
@@ -155,10 +172,14 @@ void DotEngine::update(const float delta_t, const size_t high_resolution_multipl
         }
 
         // Body on_high_resolution_loop_end
-        for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
-        {
-            body_ptr->on_high_resolution_loop_end(delta_t_high_resolution);
-        }
+        //for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
+        //{
+        //    body_ptr->on_high_resolution_loop_end(delta_t_high_resolution);
+        //}
+        m_multi_thread_helper.body_on_high_resolution_loop_end(delta_t_high_resolution);
     }
+
+    // Sleep threads from multithreads helper
+    m_multi_thread_helper.sleep();
 
 }
