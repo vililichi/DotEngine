@@ -11,7 +11,7 @@ class DotLimitedDynamicRigidBody: public DotDynamicRigidBody{
     float get_max_speed() { return m_max_speed; }
     void set_max_speed( const float& value ) { m_max_speed = value; }
 
-    virtual void applyKinematic( const float deltaTime) {
+    virtual void on_high_resolution_loop_end( const float deltaTime){
 
         const float deltaTime_2 = deltaTime * deltaTime;
 

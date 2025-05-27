@@ -6,9 +6,9 @@
 class DotEngine {
     private:
     std::vector<std::shared_ptr<DotBodyInterface>> m_body_ptrs;
-    std::vector<std::shared_ptr<DotForceInterface>> m_force_ptrs;
-    std::vector<std::shared_ptr<DotUniversalLawInterface>> m_universal_law_ptrs;
-    std::vector<std::shared_ptr<DotCollisionEffectInterface>> m_collision_effect_ptrs;
+
+    std::vector<std::shared_ptr<DotSystemInterface>> m_low_resolution_system_ptrs;
+    std::vector<std::shared_ptr<DotSystemInterface>> m_high_resolution_system_ptrs;
 
     std::vector<std::vector<size_t>> m_collision_sort_result_buffer;
     std::vector<DotCollisionInfo>    m_collision_result_buffer;
@@ -21,29 +21,31 @@ class DotEngine {
 
     void update(const float delta_t, const size_t division = 0);
 
+    void register_system(std::shared_ptr<DotSystemInterface> system_ptr, bool is_high_resolution = false){
+        system_ptr->on_body_list_update(m_body_ptrs);   
+        if( is_high_resolution) m_high_resolution_system_ptrs.emplace_back(std::move(system_ptr));
+        else m_low_resolution_system_ptrs.emplace_back(std::move(system_ptr));
+    }
+
+    void register_system_low_resolution(std::shared_ptr<DotSystemInterface> system_ptr){
+        register_system(system_ptr, false);
+    }
+
+    void register_system_high_resolution(std::shared_ptr<DotSystemInterface> system_ptr){
+        register_system(system_ptr, true);
+    }
+
     void register_body(std::shared_ptr<DotBodyInterface> body_ptr){
         m_body_ptrs.emplace_back(std::move(body_ptr));
         m_body_list_changed = true;
     }
 
-    void register_force(std::shared_ptr<DotForceInterface> force_ptr){
-        m_force_ptrs.emplace_back(std::move(force_ptr));
-    }
-
-    void register_universal_law(std::shared_ptr<DotUniversalLawInterface> law_ptr){
-        m_universal_law_ptrs.emplace_back(std::move(law_ptr));
-    }
-
-    void register_collision_effect(std::shared_ptr<DotCollisionEffectInterface> effect_ptr){
-        m_collision_effect_ptrs.emplace_back(std::move(effect_ptr));
-    }
-
 };
 
-void DotEngine::update(const float delta_t, const size_t division)
+void DotEngine::update(const float delta_t, const size_t high_resolution_multiplier)
 {
 
-    // Body cleaning and reset
+    // Body cleaning and on_low_resolution_loop_start
     for(size_t i_p_1 = m_body_ptrs.size(); i_p_1 > 0; i_p_1--)
     {
         const size_t i = i_p_1  - 1;
@@ -54,46 +56,13 @@ void DotEngine::update(const float delta_t, const size_t division)
             m_body_ptrs.pop_back();
             m_body_list_changed = true;
         }
-        else body_ptr->resetForce();
+        else body_ptr->on_low_resolution_loop_start(delta_t);
     }
 
-    // Universal law cleaning
-    for(size_t i_p_1 = m_universal_law_ptrs.size(); i_p_1 > 0; i_p_1--)
-    {
-        const size_t i = i_p_1  - 1;
-        const std::shared_ptr<DotUniversalLawInterface>& universal_law_ptr = m_universal_law_ptrs[i];
-        if(universal_law_ptr->is_destroyed())
-        {
-            std::swap(m_universal_law_ptrs[i], m_universal_law_ptrs.back());
-            m_universal_law_ptrs.pop_back();
-        }
-    }
-
-    // Forces cleaning
-    for(size_t i_p_1 = m_force_ptrs.size(); i_p_1 > 0; i_p_1--)
-    {
-        const size_t i = i_p_1  - 1;
-        const std::shared_ptr<DotForceInterface>& force_ptr = m_force_ptrs[i];
-        if(force_ptr->is_destroyed())
-        {
-            std::swap(m_force_ptrs[i], m_force_ptrs.back());
-            m_force_ptrs.pop_back();
-        }
-    }
-    
-    // Collision precalculation
+    // Collision calculation
     generate_collision_pool(m_body_ptrs, m_collision_sort_result_buffer);
+
     m_collision_result_buffer.clear();
-
-    // Physic application loop
-    const float delta_t_itt = delta_t/division;
-    const size_t nbr_collision_sort_result = m_collision_sort_result_buffer.size();
-    const size_t nbr_body_ptrs = m_body_ptrs.size();
-    const size_t nbr_universal_law_ptrs = m_universal_law_ptrs.size();
-    const size_t nbr_force_ptrs = m_force_ptrs.size();
-    const size_t nbr_collision_effect_ptrs = m_collision_effect_ptrs.size();
-
-    bool collision_info_changed = true;
     for(const auto& collision_sort_result: m_collision_sort_result_buffer)
     {
         const size_t body_i_id = collision_sort_result[0];
@@ -111,42 +80,85 @@ void DotEngine::update(const float delta_t, const size_t division)
         }
     }
 
-    for(size_t itt = 0 ; itt < division; itt++)
+    // update systems
+    if( m_body_list_changed)
+    {
+        for(const std::shared_ptr<DotSystemInterface>& system: m_low_resolution_system_ptrs)
+        {
+            system->on_collision_list_update(m_collision_result_buffer);
+            system->on_body_list_update(m_body_ptrs);
+        }
+        for(const std::shared_ptr<DotSystemInterface>& system: m_high_resolution_system_ptrs)
+        {
+            system->on_collision_list_update(m_collision_result_buffer);
+            system->on_body_list_update(m_body_ptrs);
+        }
+        m_body_list_changed = false;
+    }
+    else
+    {
+        for(const std::shared_ptr<DotSystemInterface>& system: m_low_resolution_system_ptrs)
+        {
+            system->on_collision_list_update(m_collision_result_buffer);
+        }
+        for(const std::shared_ptr<DotSystemInterface>& system: m_high_resolution_system_ptrs)
+        {
+            system->on_collision_list_update(m_collision_result_buffer);
+        }
+
+    }
+
+    // low resolutionsystem cleaning and apply
+    for(size_t i_p_1 = m_low_resolution_system_ptrs.size(); i_p_1 > 0; i_p_1--)
+    {
+        const size_t i = i_p_1  - 1;
+        if(m_low_resolution_system_ptrs[i]->is_destroyed())
+        {
+            std::swap(m_low_resolution_system_ptrs[i], m_low_resolution_system_ptrs.back());
+            m_low_resolution_system_ptrs.pop_back();
+        }
+        else m_low_resolution_system_ptrs[i]->apply(delta_t);
+    }
+
+    // high resolutionsystem cleaning
+    for(size_t i_p_1 = m_high_resolution_system_ptrs.size(); i_p_1 > 0; i_p_1--)
+    {
+        const size_t i = i_p_1  - 1;
+        if(m_high_resolution_system_ptrs[i]->is_destroyed())
+        {
+            std::swap(m_high_resolution_system_ptrs[i], m_high_resolution_system_ptrs.back());
+            m_high_resolution_system_ptrs.pop_back();
+        }
+    }
+
+    // Body on_low_resolution_loop_end
+    for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
+    {
+        body_ptr->on_low_resolution_loop_end(delta_t);
+    }
+
+    // High resolution loop
+    const float delta_t_high_resolution = delta_t/high_resolution_multiplier;
+    for(size_t itt = 0 ; itt < high_resolution_multiplier; itt++)
     {
 
-        // Body reset
+        // Body on_high_resolution_loop_start
         for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
         {
-            body_ptr->resetForce();
+            body_ptr->on_high_resolution_loop_start(delta_t_high_resolution);
         }
 
-        // Universal law apply
-        for(const std::shared_ptr<DotUniversalLawInterface>& universal_law_ptr : m_universal_law_ptrs)
+        // high resolutionsystem apply
+        for(const std::shared_ptr<DotSystemInterface>& system_ptr : m_high_resolution_system_ptrs)
         {
-            universal_law_ptr->apply(delta_t_itt, m_body_ptrs, m_body_list_changed);
+            system_ptr->apply(delta_t_high_resolution);
         }
 
-
-        // Forces apply
-        for(const std::shared_ptr<DotForceInterface>& force_ptr : m_force_ptrs)
-        {
-            force_ptr->apply(delta_t_itt);
-        }
-
-        // collision
-        for(const std::shared_ptr<DotCollisionEffectInterface>& effet_ptr : m_collision_effect_ptrs)
-        {
-            effet_ptr->apply(delta_t_itt, m_collision_result_buffer, collision_info_changed);
-        }
-
-        // Kinematics
+        // Body on_high_resolution_loop_end
         for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
         {
-            body_ptr->applyKinematic(delta_t_itt);
+            body_ptr->on_high_resolution_loop_end(delta_t_high_resolution);
         }
-
-        m_body_list_changed = false;
-        collision_info_changed = false;
     }
 
 }

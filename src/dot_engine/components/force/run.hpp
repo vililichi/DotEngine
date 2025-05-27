@@ -3,7 +3,7 @@
 
 #pragma once
 
-class DotRunningForce : public DotForceInterface
+class DotRunningForce : public DotSystemInterface
 {
     protected:
     std::weak_ptr<DotStaticRigidBody> m_runner_ptr;

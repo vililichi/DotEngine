@@ -3,7 +3,7 @@
 
 #pragma once
 
-class DotLinkBase : public DotForceInterface
+class DotLinkBase : public DotSystemInterface
 {
     protected:
     std::weak_ptr<DotStaticRigidBody> m_target_ptr_a;

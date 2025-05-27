@@ -22,4 +22,6 @@ class DotStaticRigidBody: public DotBodyInterface{
 
     Float2d get_speed() { return m_speed; }
 
+    virtual void addForce( [[maybe_unused]] const Float2d& force, [[maybe_unused]] const Float2d& force_derivation = Float2d(0.f, 0.f)){};
+
 };

@@ -20,28 +20,28 @@ struct BlockingCollisionInfo
 
 };
 
-class DotBlockingCollisionEffect : public DotCollisionEffectInterface
+class DotBlockingCollisionEffect : public DotSystemInterface
 {
     private:
     std::vector<BlockingCollisionInfo> m_collision_bodies_buffer;
 
     public:
     virtual ~DotBlockingCollisionEffect(){}
-    virtual void apply( const float delta_t, const std::vector<DotCollisionInfo>& collision_infos, const bool collision_infos_changed  )
-    {
-        if( collision_infos_changed )
-        {
-            m_collision_bodies_buffer.clear();
-            for( const DotCollisionInfo& info : collision_infos )
-            {
-                DotStaticRigidBody* const body_a = dynamic_cast<DotStaticRigidBody* const>(info.body_a);
-                if(!body_a) continue;
-                DotStaticRigidBody* const body_b = dynamic_cast<DotStaticRigidBody* const>(info.body_b);
-                if(!body_b) continue;
-                m_collision_bodies_buffer.emplace_back(body_a,body_b);
-            }
-        }
 
+    virtual void on_collision_list_update([[maybe_unused]] const std::vector<DotCollisionInfo>& collision_infos){
+        m_collision_bodies_buffer.clear();
+        for( const DotCollisionInfo& info : collision_infos )
+        {
+            DotStaticRigidBody* const body_a = dynamic_cast<DotStaticRigidBody* const>(info.body_a);
+            if(!body_a) continue;
+            DotStaticRigidBody* const body_b = dynamic_cast<DotStaticRigidBody* const>(info.body_b);
+            if(!body_b) continue;
+            m_collision_bodies_buffer.emplace_back(body_a,body_b);
+        }
+    }
+
+    virtual void apply( const float delta_t)
+    {
         for( const BlockingCollisionInfo& info : m_collision_bodies_buffer )
         {
             // Convert to static rigid body

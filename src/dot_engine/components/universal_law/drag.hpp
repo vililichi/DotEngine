@@ -3,7 +3,7 @@
 
 #pragma once
 
-class DotUniversalLawDrag : public DotUniversalLawInterface
+class DotUniversalLawDrag : public DotSystemInterface
 {
     private:
     float m_b;
@@ -15,17 +15,16 @@ class DotUniversalLawDrag : public DotUniversalLawInterface
     DotUniversalLawDrag(const float b ):m_b(-b){}
     virtual ~DotUniversalLawDrag(){}
 
-    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed  ) {
-
-        if(body_list_changed)
+    virtual void on_body_list_update([[maybe_unused]] const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs){
+        m_body_buffer.clear();
+        for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
         {
-            m_body_buffer.clear();
-            for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
-            {
-                DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
-                if( dynamic_body_ptr ) m_body_buffer.emplace_back(dynamic_body_ptr);
-            }
+            DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
+            if( dynamic_body_ptr ) m_body_buffer.emplace_back(dynamic_body_ptr);
         }
+    }
+
+    virtual void apply( [[maybe_unused]] const float delta_t ) {
 
         for(DotDynamicRigidBody* const body_ptr : m_body_buffer)
         {

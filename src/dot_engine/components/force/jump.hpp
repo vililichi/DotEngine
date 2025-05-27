@@ -3,7 +3,7 @@
 
 #pragma once
 
-class DotJumpingForce : public DotForceInterface
+class DotJumpingForce : public DotSystemInterface
 {
     private:
     std::weak_ptr<DotStaticRigidBody> m_jumper_ptr;

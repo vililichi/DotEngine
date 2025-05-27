@@ -7,6 +7,9 @@ class DotDynamicRigidBody: public DotStaticRigidBody{
     Float2d m_acceleration;
     Float2d m_acceleration_derive;
 
+    Float2d m_low_res_acceleration;
+    Float2d m_low_res_acceleration_derive;
+
     public:
 
     void set_speed( const Float2d& value ) { m_speed = value; }
@@ -21,7 +24,20 @@ class DotDynamicRigidBody: public DotStaticRigidBody{
         m_acceleration_derive += force_derivation/m_mass;
     }
 
-    virtual void applyKinematic( const float deltaTime) {
+
+    virtual void on_low_resolution_loop_start( [[maybe_unused]] const float deltaTime){
+        m_acceleration = Float2d();
+        m_acceleration_derive = Float2d();
+    }
+    virtual void on_low_resolution_loop_end( [[maybe_unused]] const float deltaTime){
+        m_low_res_acceleration = m_acceleration;
+        m_low_res_acceleration_derive = m_acceleration_derive;
+    }
+    virtual void on_high_resolution_loop_start( [[maybe_unused]] const float deltaTime){
+        m_acceleration = m_low_res_acceleration;
+        m_acceleration_derive = m_low_res_acceleration_derive;
+    }
+    virtual void on_high_resolution_loop_end( const float deltaTime){
 
         const float deltaTime_2 = deltaTime * deltaTime;
         const float deltaTime_3 = deltaTime_2 * deltaTime;

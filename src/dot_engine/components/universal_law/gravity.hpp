@@ -4,7 +4,7 @@
 
 #pragma once
 
-class DotUniversalLawGravity : public DotUniversalLawInterface
+class DotUniversalLawGravity : public DotSystemInterface
 {
     private:
     std::vector<DotDynamicRigidBody*> m_body_buffer;
@@ -16,18 +16,16 @@ class DotUniversalLawGravity : public DotUniversalLawInterface
     DotUniversalLawGravity(const Float2d& g ):m_g(g){}
     virtual ~DotUniversalLawGravity(){}
 
-    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed  ) {
-
-        if( body_list_changed )
+    virtual void on_body_list_update([[maybe_unused]] const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs){
+        m_body_buffer.clear();
+        for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
         {
-            // sort body
-            m_body_buffer.clear();
-            for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
-            {
-                DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
-                if(dynamic_body_ptr) m_body_buffer.emplace_back(dynamic_body_ptr);
-            }
+            DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
+            if(dynamic_body_ptr) m_body_buffer.emplace_back(dynamic_body_ptr);
         }
+    }
+
+    void apply( [[maybe_unused]] const float delta_t) {
 
         for(DotDynamicRigidBody* const body_ptr : m_body_buffer )
         {
@@ -36,7 +34,7 @@ class DotUniversalLawGravity : public DotUniversalLawInterface
     }
 };
 
-class DotUniversalLawAstralGravity : public DotUniversalLawInterface
+class DotUniversalLawAstralGravity : public DotSystemInterface
 {
     private:
     float m_g;
@@ -51,45 +49,43 @@ class DotUniversalLawAstralGravity : public DotUniversalLawInterface
 
     void register_star(const std::shared_ptr<DotStaticRigidBody>& body) { m_stars.push_back(body); }
 
-    void apply( [[maybe_unused]] const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed  ) {
-
-        if( body_list_changed )
+    virtual void on_body_list_update([[maybe_unused]] const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs){
+        // clean star
+        for(size_t i = m_stars.size(); i > 0; i--)
         {
+            const size_t index = i - 1;
+            const std::shared_ptr<DotStaticRigidBody>& star = m_stars[index];
 
-            // clean star
-            for(size_t i = m_stars.size(); i > 0; i--)
+            if( star->is_destroyed() )
             {
-                const size_t index = i - 1;
-                const std::shared_ptr<DotStaticRigidBody>& star = m_stars[index];
-
-                if( star->is_destroyed() )
-                {
-                    std::swap(m_stars[index], m_stars.back());
-                    m_stars.pop_back();
-                    continue;
-                }
-            }
-
-            // sort body
-            m_body_buffer.clear();
-            for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
-            {
-                bool is_a_star = false;
-                for(const std::shared_ptr<DotStaticRigidBody>& star : m_stars)
-                {
-                    if(dynamic_cast<DotStaticRigidBody*>(body_ptr.get()) ==  star.get())
-                    {
-                        is_a_star = true;
-                        break;
-                    }
-                }
-                if(is_a_star) continue;
-
-                
-                DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
-                if(dynamic_body_ptr) m_body_buffer.emplace_back(dynamic_body_ptr);
+                std::swap(m_stars[index], m_stars.back());
+                m_stars.pop_back();
+                continue;
             }
         }
+
+        // sort body
+        m_body_buffer.clear();
+        for(const std::shared_ptr<DotBodyInterface>& body_ptr : body_ptrs)
+        {
+            bool is_a_star = false;
+            for(const std::shared_ptr<DotStaticRigidBody>& star : m_stars)
+            {
+                if(dynamic_cast<DotStaticRigidBody*>(body_ptr.get()) ==  star.get())
+                {
+                    is_a_star = true;
+                    break;
+                }
+            }
+            if(is_a_star) continue;
+
+            
+            DotDynamicRigidBody* const dynamic_body_ptr = dynamic_cast<DotDynamicRigidBody* const>(body_ptr.get());
+            if(dynamic_body_ptr) m_body_buffer.emplace_back(dynamic_body_ptr);
+        }
+    }
+
+    void apply( [[maybe_unused]] const float delta_t ) {
 
         for(const std::shared_ptr<DotStaticRigidBody>& star : m_stars)
         {

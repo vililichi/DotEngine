@@ -24,14 +24,14 @@ int main()
 
     // Ajout des loi universelle
     std::shared_ptr<DotUniversalLawDrag> drag_law = std::make_shared<DotUniversalLawDrag>(DotUniversalLawDrag(0.5));
-    engine.register_universal_law(drag_law);
+    engine.register_system_low_resolution(drag_law);
 
     std::shared_ptr<DotUniversalLawAstralGravity> gravity_law = std::make_shared<DotUniversalLawAstralGravity>(DotUniversalLawAstralGravity(1000.0));
-    engine.register_universal_law(gravity_law);
+    engine.register_system_low_resolution(gravity_law);
 
     // Ajout des effets de collision
     std::shared_ptr<DotBlockingCollisionEffect> blocking_collision_effect = std::make_shared<DotBlockingCollisionEffect>(DotBlockingCollisionEffect());
-    engine.register_collision_effect(blocking_collision_effect);
+    engine.register_system_high_resolution(blocking_collision_effect);
 
 
     const float hard_hardness = 50000.0;
@@ -49,7 +49,7 @@ int main()
 
     std::mt19937 gen( 0 );
     std::uniform_real_distribution<float> dist( -50000, 50000 );
-    const size_t nbr_useless_particules = 1000;//10000;
+    const size_t nbr_useless_particules = 1000;
     for(size_t i = 0 ; i < nbr_useless_particules; i++)
     {
         std::shared_ptr<DotLimitedDynamicRigidBody> truc_ptr = std::make_shared<DotLimitedDynamicRigidBody>(DotLimitedDynamicRigidBody());
@@ -123,7 +123,7 @@ int main()
     player_jump_force->set_degradation_rate(player_jmp_force*4);
     player_jump_force->set_distance_threshold(4.0);
     player_jump_force->set_initial_value(player_jmp_force);
-    engine.register_force(player_jump_force);
+    engine.register_system_low_resolution(player_jump_force);
 
     const float player_run_force_magnitude = 20000;
     std::shared_ptr<DotRunningForce> player_run_force = std::make_shared<DotRunningForce>(DotRunningForce());
@@ -135,7 +135,7 @@ int main()
     player_run_force->add_floor(ground2_ptr, 1.0);
     player_run_force->set_distance_threshold(4.0);
     player_run_force->set_running_value(player_run_force_magnitude);
-    engine.register_force(player_run_force);
+    engine.register_system_low_resolution(player_run_force);
 
     const float ball_spring_hardness = 10000.0; //hard_hardness;
     const float ball_spring_damping = 100.0; //obj_damping;
@@ -146,7 +146,7 @@ int main()
     spring_1_2->set_length(ball_spring_length);
     spring_1_2->set_target_a(ball_ptr_1);
     spring_1_2->set_target_b(ball_ptr_2);
-    engine.register_force(spring_1_2);
+    engine.register_system_high_resolution(spring_1_2);
 
     std::shared_ptr<DotSpringLink> spring_1_3 = std::make_shared<DotSpringLink>(DotSpringLink());
     spring_1_3->set_hardness(ball_spring_hardness);
@@ -154,7 +154,7 @@ int main()
     spring_1_3->set_length(ball_spring_length);
     spring_1_3->set_target_a(ball_ptr_1);
     spring_1_3->set_target_b(ball_ptr_3);
-    engine.register_force(spring_1_3);
+    engine.register_system_high_resolution(spring_1_3);
 
     std::shared_ptr<DotSpringLink> spring_2_3 = std::make_shared<DotSpringLink>(DotSpringLink());
     spring_2_3->set_hardness(ball_spring_hardness);
@@ -162,7 +162,7 @@ int main()
     spring_2_3->set_length(ball_spring_length);
     spring_2_3->set_target_a(ball_ptr_2);
     spring_2_3->set_target_b(ball_ptr_3);
-    engine.register_force(spring_2_3);
+    engine.register_system_high_resolution(spring_2_3);
 
 
     // Ajout des formes pour l'affichage

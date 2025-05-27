@@ -26,26 +26,11 @@ struct DotCollisionInfo
 
 };
 
-class DotUniversalLawInterface : public Destroyable
-{
-
-    public:
-
-    virtual ~DotUniversalLawInterface(){}
-    virtual void apply( const float delta_t, const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, const bool body_list_changed ) = 0;
-};
-
-class DotForceInterface : public Destroyable
-{
-
-    public:
-    virtual ~DotForceInterface(){}
-    virtual void apply( const float delta_t ) = 0;
-};
-
-class DotCollisionEffectInterface : public Destroyable
+class DotSystemInterface : public Destroyable
 {
     public:
-    virtual ~DotCollisionEffectInterface(){}
-    virtual void apply( const float delta_t, const std::vector<DotCollisionInfo>& collision_infos, const bool collision_infos_changed  ) = 0;
+    virtual ~DotSystemInterface(){}
+    virtual void apply( [[maybe_unused]] const float delta_t) = 0;
+    virtual void on_body_list_update([[maybe_unused]] const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs){};
+    virtual void on_collision_list_update([[maybe_unused]] const std::vector<DotCollisionInfo>& collision_infos){};
 };
