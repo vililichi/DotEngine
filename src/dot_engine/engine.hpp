@@ -77,24 +77,7 @@ void DotEngine::update(const float delta_t, const size_t high_resolution_multipl
 
     // Collision calculation
     generate_collision_pool(m_body_ptrs, m_collision_sort_result_buffer);
-
-    m_collision_result_buffer.clear();
-    for(const auto& collision_sort_result: m_collision_sort_result_buffer)
-    {
-        const size_t body_i_id = collision_sort_result[0];
-        const std::shared_ptr<DotBodyInterface>& body_ptr_i = m_body_ptrs[body_i_id];
-
-        const size_t nbr_m_collision_sort_result_buffer_sub_result = collision_sort_result.size();
-        for(size_t j = 1; j < nbr_m_collision_sort_result_buffer_sub_result; j++)
-        {
-            const size_t body_j_id = collision_sort_result[j];
-            const std::shared_ptr<DotBodyInterface>& body_ptr_j = m_body_ptrs[body_j_id];
-            if( DotBodyInterface::hasCollision(body_ptr_i, body_ptr_j) )
-            {
-                m_collision_result_buffer.emplace_back(body_ptr_i.get(), body_ptr_j.get());
-            }
-        }
-    }
+    m_multi_thread_helper.body_has_collision();
 
     // update systems
     if( m_body_list_changed)

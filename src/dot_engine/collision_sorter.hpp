@@ -4,8 +4,8 @@
 #include <algorithm>
 #pragma once
 
-constexpr size_t COLLISION_SORTER_MAX_DEPT = 8;
-constexpr size_t COLLISION_SORTER_MINIMUM_BODY = 64;
+constexpr size_t COLLISION_SORTER_MAX_DEPT = 7;
+constexpr size_t COLLISION_SORTER_MINIMUM_BODY = 128;
 
 constexpr size_t ZONES_RESULT_MEMORY_SEGMENT_NBR = 500;
 class ZonesResultMemory{
