@@ -18,7 +18,9 @@ class PhysicThread
     uint8_t m_forces_resolution_multiplier;
     std::thread m_physic_thread;
 
-    void physic_loop(){ while(!m_end) physic_loop_itt(); };
+    void physic_loop(){
+        while(!m_end) physic_loop_itt(); 
+    };
     virtual void physic_loop_itt();
 
     public:

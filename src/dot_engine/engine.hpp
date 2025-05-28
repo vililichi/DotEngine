@@ -132,10 +132,7 @@ void DotEngine::update(const float delta_t, const size_t high_resolution_multipl
     }
 
     // Body on_low_resolution_loop_end
-    for(const std::shared_ptr<DotBodyInterface>& body_ptr : m_body_ptrs)
-    {
-        body_ptr->on_low_resolution_loop_end(delta_t);
-    }
+    m_multi_thread_helper.body_on_low_resolution_loop_end(delta_t);
 
     // High resolution loop
     const float delta_t_high_resolution = delta_t/high_resolution_multiplier;

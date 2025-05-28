@@ -1,4 +1,5 @@
 #include "./body_interface.hpp"
+#include "./physic_multithread_helper.hpp"
 #include <array>
 #include <iostream>
 #include <algorithm>
@@ -13,22 +14,21 @@ class ZonesResultMemory{
         static std::array<std::vector<size_t>,4> zones_result[ZONES_RESULT_MEMORY_SEGMENT_NBR];
         static size_t counter;
     public:
-        static bool available()
+        static bool available() noexcept
         {
             return counter < ZONES_RESULT_MEMORY_SEGMENT_NBR;
         }
-        static std::array<std::vector<size_t>,4>& get()
+        static std::array<std::vector<size_t>,4>& get() noexcept
         {
             counter += 1;
             return zones_result[counter - 1];
         }
-        static void reset() {
+        static void reset() noexcept {
             counter = 0;
         }
 };
 std::array<std::vector<size_t>,4> ZonesResultMemory::zones_result[ZONES_RESULT_MEMORY_SEGMENT_NBR];
 size_t ZonesResultMemory::counter = 0;
-
 
 void collision_quad_sort(
     const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, 
@@ -36,7 +36,7 @@ void collision_quad_sort(
     std::vector<size_t>& zone_hybrid_result,
     std::vector<std::array<bool, 4>>& zone_hybrid_valid_result,
     std::array<std::vector<size_t>,4>& zones_result
-)
+) noexcept
 {
 
     // Reserve place for output
@@ -134,7 +134,7 @@ size_t generate_collision_pool_imp(
     const size_t depth,
     std::vector<size_t>& zone_hybrid_result,
     std::vector<std::array<bool, 4>>& zone_hybrid_valid_result
-)
+) noexcept
 {
     const size_t nbr_body = body_ids.size();
     size_t size_out = initial_out_size;
@@ -212,7 +212,7 @@ size_t generate_collision_pool_imp(
     return size_out;
 }
 
-void generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, std::vector<std::vector<size_t>>& out_buffer)
+void generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>>& body_ptrs, std::vector<std::vector<size_t>>& out_buffer) noexcept
 {
     ZonesResultMemory::reset();
 
@@ -224,8 +224,10 @@ void generate_collision_pool(const std::vector<std::shared_ptr<DotBodyInterface>
 
     out_buffer.resize(nbr_body);
 
-    std::vector<size_t> zone_hybrid_result;
-    std::vector<std::array<bool, 4>> zone_hybrid_valid_result;
+    static std::vector<size_t> zone_hybrid_result;
+    static std::vector<std::array<bool, 4>> zone_hybrid_valid_result;
+    zone_hybrid_result.clear();
+    zone_hybrid_valid_result.clear();
 
     const size_t out_size = generate_collision_pool_imp(body_ptrs, body_ids, out_buffer, 0, 0, zone_hybrid_result, zone_hybrid_valid_result);
 

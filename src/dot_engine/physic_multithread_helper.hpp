@@ -3,6 +3,7 @@
 #include <atomic>
 #include <mutex>
 #include <functional>
+#include <iostream>
 #pragma once
 
 enum DotThreadTaskId {
@@ -11,6 +12,8 @@ enum DotThreadTaskId {
     CUSTOM,
     BODY_ON_HIGH_RESOLUTION_LOOP_END,
     BODY_ON_HIGH_RESOLUTION_LOOP_START,
+    BODY_ON_LOW_RESOLUTION_LOOP_END,
+    BODY_ON_LOW_RESOLUTION_LOOP_START,
     BODY_HAS_COLLISION
 };
 
@@ -38,15 +41,12 @@ class DotPhysicMultithreadHelper
     std::vector<std::vector<size_t>>& m_collision_sort_result_buffer_ref;
     std::vector<std::vector<DotCollisionInfo>> m_collision_result_buffer_unfused;
     std::vector<DotCollisionInfo>&    m_collision_result_buffer_ref;
-    const std::function<void(float, size_t)>*  m_custom_function_ptr;
+    const std::function<void(const DotThreadTask&)>*  m_custom_function_ptr;
     
 
     const uint8_t m_nbr_thread;
 
     void worker_loop(const size_t thread_id);
-    void task_BODY_ON_HIGH_RESOLUTION_LOOP_START(const DotThreadTask& task);
-    void task_BODY_ON_HIGH_RESOLUTION_LOOP_END(const DotThreadTask& task);
-    void task_CUSTOM(const DotThreadTask& task);
     void task_BODY_HAS_COLLISION(const DotThreadTask& task, const uint8_t thread_id);
 
     public:
@@ -176,7 +176,7 @@ class DotPhysicMultithreadHelper
 
     }
 
-    void custom_function(const float dt, const size_t size, const std::function<void(float, size_t)>*  custom_function_ptr)
+    void custom_function(const float dt, const size_t size, const std::function<void(const DotThreadTask&)>*  custom_function_ptr)
     {
         m_custom_function_ptr = custom_function_ptr;
         populate_task_and_wait(dt, size, DotThreadTaskId::CUSTOM);
@@ -192,6 +192,16 @@ class DotPhysicMultithreadHelper
         populate_task_and_wait(dt, m_body_ptrs_ref.size(), DotThreadTaskId::BODY_ON_HIGH_RESOLUTION_LOOP_END);
     }
 
+    void body_on_low_resolution_loop_start(const float dt)
+    {
+        populate_task_and_wait(dt, m_body_ptrs_ref.size(), DotThreadTaskId::BODY_ON_LOW_RESOLUTION_LOOP_START);
+    }
+
+    void body_on_low_resolution_loop_end(const float dt)
+    {
+        populate_task_and_wait(dt, m_body_ptrs_ref.size(), DotThreadTaskId::BODY_ON_LOW_RESOLUTION_LOOP_END);
+    }
+
     void body_has_collision()
     {
         m_collision_result_buffer_ref.clear();
@@ -203,24 +213,6 @@ class DotPhysicMultithreadHelper
         }
     }
 };
-
-void DotPhysicMultithreadHelper::task_BODY_ON_HIGH_RESOLUTION_LOOP_START(const DotThreadTask& task)
-{
-    const size_t end_excluded = task.id_size+task.id_start;
-    for(size_t i = task.id_start; i < end_excluded; i++)
-    {
-        m_body_ptrs_ref[i]->on_high_resolution_loop_start(task.dt);
-    }
-}
-
-void DotPhysicMultithreadHelper::task_BODY_ON_HIGH_RESOLUTION_LOOP_END(const DotThreadTask& task)
-{
-    const size_t end_excluded = task.id_size+task.id_start;
-    for(size_t i = task.id_start; i < end_excluded; i++)
-    {
-        m_body_ptrs_ref[i]->on_high_resolution_loop_end(task.dt);
-    }
-}
 
 void DotPhysicMultithreadHelper::task_BODY_HAS_COLLISION(const DotThreadTask& task, const uint8_t thread_id)
 {
@@ -245,15 +237,6 @@ void DotPhysicMultithreadHelper::task_BODY_HAS_COLLISION(const DotThreadTask& ta
     }
 }
 
-void DotPhysicMultithreadHelper::task_CUSTOM(const DotThreadTask& task)
-{
-    const size_t end_excluded = task.id_size+task.id_start;
-    for(size_t i = task.id_start; i < end_excluded; i++)
-    {
-        m_custom_function_ptr->operator()(task.dt, i);
-    }
-}
-
 void DotPhysicMultithreadHelper::worker_loop(const size_t thread_id)
 {
     std::atomic_flag& execute_task_flag = *m_threads_excute_task_flag[thread_id];
@@ -273,16 +256,48 @@ void DotPhysicMultithreadHelper::worker_loop(const size_t thread_id)
             break;
 
         case CUSTOM:
-            task_CUSTOM(task);
+            m_custom_function_ptr->operator()(task);
             break;
 
         case BODY_ON_HIGH_RESOLUTION_LOOP_START:
-            task_BODY_ON_HIGH_RESOLUTION_LOOP_START(task);
+        {
+            const size_t end_excluded = task.id_size+task.id_start;
+            for(size_t i = task.id_start; i < end_excluded; i++)
+            {
+                m_body_ptrs_ref[i]->on_high_resolution_loop_start(task.dt);
+            }
             break;
+        }
 
         case BODY_ON_HIGH_RESOLUTION_LOOP_END:
-            task_BODY_ON_HIGH_RESOLUTION_LOOP_END(task);
+        {
+            const size_t end_excluded = task.id_size+task.id_start;
+            for(size_t i = task.id_start; i < end_excluded; i++)
+            {
+                m_body_ptrs_ref[i]->on_high_resolution_loop_end(task.dt);
+            }
             break;
+        }
+
+        case BODY_ON_LOW_RESOLUTION_LOOP_END:
+        {
+            const size_t end_excluded = task.id_size+task.id_start;
+            for(size_t i = task.id_start; i < end_excluded; i++)
+            {
+                m_body_ptrs_ref[i]->on_low_resolution_loop_end(task.dt);
+            }
+            break;
+        }
+
+        case BODY_ON_LOW_RESOLUTION_LOOP_START:
+        {
+            const size_t end_excluded = task.id_size+task.id_start;
+            for(size_t i = task.id_start; i < end_excluded; i++)
+            {
+                m_body_ptrs_ref[i]->on_low_resolution_loop_start(task.dt);
+            }
+            break;
+        }
 
         case BODY_HAS_COLLISION:
             task_BODY_HAS_COLLISION(task, thread_id);
