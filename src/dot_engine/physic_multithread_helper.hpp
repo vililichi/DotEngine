@@ -30,7 +30,7 @@ class DotPhysicMultithreadHelper
     private:
     std::vector<std::thread> m_threads;
     std::vector<DotThreadTask> m_threads_tasks;
-    std::vector<std::unique_ptr<std::atomic_flag>> m_threads_excute_task_flag;
+    std::vector<std::unique_ptr<std::atomic_flag>> m_worker_wait_flags;
     std::atomic_flag m_awake_flag;
 
     std::atomic_uint8_t m_nbr_task_to_finish;
@@ -66,14 +66,18 @@ class DotPhysicMultithreadHelper
     m_collision_result_buffer_ref(collision_result_buffer_ref),
     m_nbr_thread(nbr_thread)
     {
-        m_awake_flag.clear();
+        m_awake_flag.clear(std::memory_order::release);
         for(uint8_t i = 0; i < nbr_thread; i++)
         {
             m_threads_tasks.emplace_back();
-            m_threads_excute_task_flag.emplace_back(std::make_unique<std::atomic_flag>());
-            m_threads_excute_task_flag.back()->clear();
-            m_threads.emplace_back(std::thread(&DotPhysicMultithreadHelper::worker_loop, this, i));
+            m_worker_wait_flags.emplace_back(std::make_unique<std::atomic_flag>());
+            m_worker_wait_flags.back()->test_and_set();
             m_collision_result_buffer_unfused.emplace_back();
+        }
+
+        for(uint8_t i = 0; i < nbr_thread; i++)
+        {
+            m_threads.emplace_back(std::thread(&DotPhysicMultithreadHelper::worker_loop, this, i));
         }
 
     }
@@ -85,7 +89,7 @@ class DotPhysicMultithreadHelper
         {
             DotThreadTask& task = m_threads_tasks[i];
             task.task_id = DotThreadTaskId::KILL;
-            m_threads_excute_task_flag[i]->test_and_set();
+            m_worker_wait_flags[i]->clear(std::memory_order::release);
         }
         for( std::thread& m_thread : m_threads )
         {
@@ -94,10 +98,10 @@ class DotPhysicMultithreadHelper
     }
 
     void awake(){
-        m_awake_flag.test_and_set(); 
+        m_awake_flag.test_and_set(std::memory_order::release); 
         m_awake_flag.notify_all();
     }
-    void sleep(){m_awake_flag.clear();}
+    void sleep(){m_awake_flag.clear(std::memory_order::release);}
 
     void populate_task_and_wait(const float dt, const size_t size, const DotThreadTaskId task_id)
     {
@@ -123,7 +127,7 @@ class DotPhysicMultithreadHelper
                 task.id_size = task_size;
                 id_counter += task_size;
             }
-            m_threads_excute_task_flag[i]->test_and_set();
+            m_worker_wait_flags[i]->clear(std::memory_order::release);
         }
 
         uint8_t remaining_tasks = m_nbr_thread;
@@ -168,7 +172,7 @@ class DotPhysicMultithreadHelper
                 task.id_size = task_size;
                 id_counter += task_size;
             }
-            m_threads_excute_task_flag[i]->test_and_set();
+            m_worker_wait_flags[i]->clear(std::memory_order::release);
         }
 
         uint8_t remaining_tasks = m_nbr_thread;
@@ -239,13 +243,16 @@ void DotPhysicMultithreadHelper::task_BODY_HAS_COLLISION(const DotThreadTask& ta
 
 void DotPhysicMultithreadHelper::worker_loop(const size_t thread_id)
 {
-    std::atomic_flag& execute_task_flag = *m_threads_excute_task_flag[thread_id];
+    std::atomic_flag& worker_wait_flag = *m_worker_wait_flags[thread_id];
     DotThreadTask& task = m_threads_tasks[thread_id];
     bool continue_loop = true;
     while(continue_loop)
     {
-        while(!execute_task_flag.test()) m_awake_flag.wait(false);
-        execute_task_flag.clear();
+        while( worker_wait_flag.test(std::memory_order::acquire) )
+        {
+            m_awake_flag.wait(false);
+        }
+        worker_wait_flag.test_and_set(std::memory_order::release);
 
         switch(task.task_id) {
         case NONE:

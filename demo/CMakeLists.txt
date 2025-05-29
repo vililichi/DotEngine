@@ -7,7 +7,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O1 -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math")
 
 include(FetchContent)
 FetchContent_Declare(SFML
